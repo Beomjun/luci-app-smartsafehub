@@ -213,6 +213,17 @@ MOCK_FETCH_FAIL=1 "$UPDATER" check
 assert_contains "$TMP/updates.state" "package${TAB}luci-app-smartsafehub${TAB}0.2.1-r1${TAB}${RELEASE_VERSION}${TAB}1"
 [ ! -e "$TMP/release-notes.json" ] || fail 'failed release note download must not leave a stale cache'
 
+# The channel selected in smartsafehub.list is the release-note source of truth.
+# A stale/legacy stable repository elsewhere must not override a beta switch.
+printf '%s\n' 'https://repo.smartsafehub.com/stable/packages/x86_64/smartsafehub/packages.adb' > "$TMP/repos/00-legacy-stable.list"
+printf '%s\n' 'https://repo.smartsafehub.com/beta/packages/x86_64/smartsafehub/packages.adb' > "$TMP/repos/smartsafehub.list"
+rm -f "$TMP/fetch.log" "$TMP/release-notes.json"
+"$UPDATER" check
+assert_contains "$TMP/fetch.log" "https://repo.smartsafehub.com/beta/releases/luci-app-smartsafehub/index.json"
+assert_contains "$TMP/fetch.log" "https://repo.smartsafehub.com/beta/releases/luci-app-smartsafehub/${RELEASE_VERSION}.json"
+assert_not_contains "$TMP/fetch.log" 'https://repo.smartsafehub.com/stable/releases/'
+assert_contains "$TMP/release-notes.json" "\"available_version\": \"${RELEASE_VERSION}\""
+
 "$UPDATER" install
 assert_contains "$TMP/apk.log" 'add --upgrade luci-app-smartsafehub'
 assert_not_contains "$TMP/apk.log" ' safeshield'

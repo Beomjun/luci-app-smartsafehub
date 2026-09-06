@@ -7,6 +7,7 @@ RELEASE_NOTES_FILE="${SMARTSAFEHUB_UPDATER_RELEASE_NOTES_FILE:-/tmp/smartsafehub
 LOCK_DIR="${SMARTSAFEHUB_UPDATER_LOCK_DIR:-/tmp/smartsafehub-updater.lock}"
 AUTO_MARKER="${SMARTSAFEHUB_UPDATER_AUTO_MARKER:-/tmp/smartsafehub-updater-auto-date}"
 REPOSITORY_DIR="${SMARTSAFEHUB_UPDATER_REPOSITORY_DIR:-/etc/apk/repositories.d}"
+REPOSITORY_FILE="${SMARTSAFEHUB_UPDATER_REPOSITORY_FILE:-$REPOSITORY_DIR/smartsafehub.list}"
 APK_BIN="${SMARTSAFEHUB_UPDATER_APK_BIN:-apk}"
 UCLIENT_FETCH_BIN="${SMARTSAFEHUB_UPDATER_UCLIENT_FETCH_BIN:-uclient-fetch}"
 UCI_BIN="${SMARTSAFEHUB_UPDATER_UCI_BIN:-uci}"
@@ -165,30 +166,27 @@ repository_is_configured() {
 }
 
 repository_release_base_url() {
-	local file line url rest channel
-	[ -d "$REPOSITORY_DIR" ] || return 1
+	local line url rest channel
+	[ -f "$REPOSITORY_FILE" ] || return 1
 
-	for file in "$REPOSITORY_DIR"/*; do
-		[ -f "$file" ] || continue
-		while IFS= read -r line || [ -n "$line" ]; do
-			case "$line" in
-				''|'#'*) continue ;;
-			esac
+	while IFS= read -r line || [ -n "$line" ]; do
+		case "$line" in
+			''|'#'*) continue ;;
+		esac
 
-			url="$(printf '%s\n' "$line" | awk '{ print $1 }')"
-			case "$url" in
-				https://"$REPOSITORY_HOST"/*/packages/*/"$FEED_NAME"/packages.adb)
-					rest="${url#https://$REPOSITORY_HOST/}"
-					channel="${rest%%/*}"
-					case "$channel" in
-						''|*[!A-Za-z0-9._-]*) continue ;;
-					esac
-					printf 'https://%s/%s' "$REPOSITORY_HOST" "$channel"
-					return 0
-					;;
-			esac
-		done < "$file"
-	done
+		url="$(printf '%s\n' "$line" | awk '{ print $1 }')"
+		case "$url" in
+			https://"$REPOSITORY_HOST"/*/packages/*/"$FEED_NAME"/packages.adb)
+				rest="${url#https://$REPOSITORY_HOST/}"
+				channel="${rest%%/*}"
+				case "$channel" in
+					''|*[!A-Za-z0-9._-]*) continue ;;
+				esac
+				printf 'https://%s/%s' "$REPOSITORY_HOST" "$channel"
+				return 0
+				;;
+		esac
+	done < "$REPOSITORY_FILE"
 
 	return 1
 }
