@@ -14,6 +14,7 @@ interface AsyncResourceOptions<T> {
   fallbackError: string;
   loader: () => Promise<T>;
   pollInterval?: number | ((data: T | null) => number | null);
+  refreshOnFocus?: boolean;
 }
 
 export function useAsyncResource<T>({
@@ -21,6 +22,7 @@ export function useAsyncResource<T>({
   fallbackError,
   loader,
   pollInterval,
+  refreshOnFocus = false,
 }: AsyncResourceOptions<T>) {
   const [state, setState] = useState<AsyncResourceState<T>>({
     data: null,
@@ -31,6 +33,7 @@ export function useAsyncResource<T>({
   const requested = useRef(false);
   const mounted = useRef(true);
   const inFlight = useRef<Promise<void> | null>(null);
+  const lastRequestAt = useRef<number | null>(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -57,6 +60,7 @@ export function useAsyncResource<T>({
 
       let request: Promise<void>;
 
+      lastRequestAt.current = Date.now();
       request = loader()
         .then((data) => {
           if (mounted.current) {
@@ -117,34 +121,81 @@ export function useAsyncResource<T>({
       }
     };
 
+    const millisecondsUntilStale = () => {
+      if (lastRequestAt.current === null) {
+        return 0;
+      }
+
+      return Math.max(0, interval - (Date.now() - lastRequestAt.current));
+    };
+
     const schedule = () => {
       clearTimer();
 
-      if (!cancelled && document.visibilityState !== 'hidden') {
-        timer = window.setTimeout(() => {
-          timer = null;
-          void load(false).finally(schedule);
-        }, interval);
+      if (cancelled || document.visibilityState === 'hidden') {
+        return;
       }
+
+      timer = window.setTimeout(() => {
+        timer = null;
+
+        if (cancelled || document.visibilityState === 'hidden') {
+          return;
+        }
+
+        const remaining = millisecondsUntilStale();
+        if (remaining > 0) {
+          schedule();
+          return;
+        }
+
+        void load(false).finally(schedule);
+      }, millisecondsUntilStale());
+    };
+
+    const refreshIfStale = () => {
+      clearTimer();
+
+      if (cancelled || document.visibilityState === 'hidden') {
+        return;
+      }
+
+      if (millisecondsUntilStale() > 0) {
+        schedule();
+        return;
+      }
+
+      void load(false).finally(schedule);
     };
 
     const handleVisibilityChange = () => {
-      clearTimer();
-
-      if (!cancelled && document.visibilityState !== 'hidden') {
-        void load(false).finally(schedule);
+      if (document.visibilityState === 'hidden') {
+        clearTimer();
+        return;
       }
+
+      refreshIfStale();
+    };
+
+    const handleFocus = () => {
+      refreshIfStale();
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    if (refreshOnFocus) {
+      window.addEventListener('focus', handleFocus);
+    }
     schedule();
 
     return () => {
       cancelled = true;
       clearTimer();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (refreshOnFocus) {
+        window.removeEventListener('focus', handleFocus);
+      }
     };
-  }, [active, interval, load]);
+  }, [active, interval, load, refreshOnFocus]);
 
   const refresh = useCallback(() => load(true), [load]);
   const replaceData = useCallback((data: T) => {

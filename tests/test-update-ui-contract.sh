@@ -6,13 +6,15 @@ ROOT_DIR="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 UPDATES_CARD="$ROOT_DIR/frontend/src/components/SoftwareUpdatesCard.tsx"
 UPDATE_PAGE="$ROOT_DIR/frontend/src/pages/UpdatePage.tsx"
 SETTINGS_PAGE="$ROOT_DIR/frontend/src/pages/SettingsPage.tsx"
+UPDATES_HOOK="$ROOT_DIR/frontend/src/hooks/useSoftwareUpdates.ts"
+ASYNC_RESOURCE="$ROOT_DIR/frontend/src/hooks/useAsyncResource.ts"
 
 fail() {
 	echo "FAIL: $*" >&2
 	exit 1
 }
 
-for file in "$UPDATES_CARD" "$UPDATE_PAGE" "$SETTINGS_PAGE"; do
+for file in "$UPDATES_CARD" "$UPDATE_PAGE" "$SETTINGS_PAGE" "$UPDATES_HOOK" "$ASYNC_RESOURCE"; do
 	[ -f "$file" ] || fail "missing required file: ${file#$ROOT_DIR/}"
 done
 
@@ -53,6 +55,33 @@ fi
 if grep -Fq '<p class="mt-1 mb-0 break-all text-xs text-slate-500">{item.name}</p>' "$UPDATES_CARD"; then
 	fail 'internal package name must not be rendered in the product update UI'
 fi
+
+
+# Update status polling should be conservative while idle, pause in hidden tabs,
+# refresh when the UI becomes active again, and only use a short interval while installing.
+grep -Fq 'const BACKGROUND_POLL_INTERVAL_MS = 5 * 60_000;' "$UPDATES_HOOK" || \
+	fail 'software update background polling must use a five-minute interval'
+grep -Fq 'const INSTALL_POLL_INTERVAL_MS = 3_000;' "$UPDATES_HOOK" || \
+	fail 'software update installation polling must use a three-second interval'
+grep -Fq "data?.phase === 'installing'" "$UPDATES_HOOK" || \
+	fail 'short software update polling must only be used while installing'
+if grep -Fq "data?.phase === 'checking' || data?.phase === 'installing'" "$UPDATES_HOOK"; then
+	fail 'software update checking must not use the short installation poll interval'
+fi
+grep -Fq 'refreshOnFocus: true' "$UPDATES_HOOK" || \
+	fail 'software updates must refresh when the browser window regains focus'
+grep -Fq "document.addEventListener('visibilitychange', handleVisibilityChange);" "$ASYNC_RESOURCE" || \
+	fail 'async polling must react to document visibility changes'
+grep -Fq "window.addEventListener('focus', handleFocus);" "$ASYNC_RESOURCE" || \
+	fail 'async polling must support focus-based refresh'
+grep -Fq "window.removeEventListener('focus', handleFocus);" "$ASYNC_RESOURCE" || \
+	fail 'focus refresh listener must be removed during cleanup'
+grep -Fq "document.visibilityState === 'hidden'" "$ASYNC_RESOURCE" || \
+	fail 'async polling must avoid scheduling requests while the document is hidden'
+grep -Fq 'const millisecondsUntilStale = () =>' "$ASYNC_RESOURCE" || \
+	fail 'visibility/focus refresh must be gated by the polling staleness interval'
+grep -Fq 'if (millisecondsUntilStale() > 0)' "$ASYNC_RESOURCE" || \
+	fail 'focus refresh must reschedule instead of reloading fresh data'
 
 # Update and device/system management are separate product pages.
 grep -Fq '<SoftwareUpdatesCard' "$UPDATE_PAGE" || \
