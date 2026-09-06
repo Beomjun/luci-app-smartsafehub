@@ -4,6 +4,15 @@ SmartSafeHub LuCI 애플리케이션의 정식 배포 변경 사항을 기록합
 
 버전은 애플리케이션 버전과 OpenWrt 패키지 릴리스를 함께 표기합니다. 예를 들어 `0.2.0-r1`은 애플리케이션 버전 `0.2.0`, 패키지 릴리스 `1`을 의미합니다.
 
+## [0.2.9-r2] - 2026-09-06
+
+### 테스트
+
+- Shell 기반 contract 테스트를 ShellSpec suite로 통합하고 별도 `tests/run.sh` runner를 제거했습니다.
+- 로컬과 GitHub Actions 모두 프로젝트 루트에서 `shellspec`을 직접 실행해 동일한 테스트 진입점을 사용합니다.
+- 기존 package, navigation, document, login, dashboard, network input, update, settings, ucode import, RPC, rules, SafeShield, statistics, updater contract를 개별 ShellSpec example로 유지합니다.
+- GitHub Actions에서는 ShellSpec 0.28.1을 고정 설치해 테스트 프레임워크 업데이트에 따른 비결정적 실패를 방지합니다.
+
 ## [0.2.9-r1] - 2026-09-03
 
 ### 변경

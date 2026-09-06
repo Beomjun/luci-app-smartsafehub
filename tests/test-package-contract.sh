@@ -10,6 +10,8 @@ CONFIG_FILE="$ROOT_DIR/root/etc/config/smartsafehub"
 LOGIN_TEMPLATE="$ROOT_DIR/root/usr/share/ucode/luci/template/smartsafehub/login.ut"
 FRONTEND_ENTRY="$ROOT_DIR/frontend/src/main.tsx"
 FAVICON_FILE="$ROOT_DIR/root/www/luci-static/smartsafehub/favicon.svg"
+SHELLSPEC_CONFIG="$ROOT_DIR/.shellspec"
+SHELLSPEC_CONTRACTS="$ROOT_DIR/spec/contracts_spec.sh"
 
 fail() {
 	echo "FAIL: $*" >&2
@@ -36,10 +38,13 @@ require_file "$CONFIG_FILE"
 require_file "$LOGIN_TEMPLATE"
 require_file "$FRONTEND_ENTRY"
 require_file "$FAVICON_FILE"
+require_file "$SHELLSPEC_CONFIG"
+require_file "$SHELLSPEC_CONTRACTS"
+[ ! -e "$ROOT_DIR/tests/run.sh" ] || fail 'tests/run.sh must not be used; run shellspec directly'
 
 require_executable "$ROOT_DIR/root/etc/init.d/smartsafehub-updater"
 require_executable "$ROOT_DIR/root/usr/libexec/smartsafehub-updater"
-require_executable "$ROOT_DIR/tests/run.sh"
+require_executable "$ROOT_DIR/tests/test-static-validation.sh"
 require_executable "$ROOT_DIR/tests/test-updater.sh"
 require_executable "$ROOT_DIR/tests/test-package-contract.sh"
 require_executable "$ROOT_DIR/tests/test-document-ui-contract.sh"
