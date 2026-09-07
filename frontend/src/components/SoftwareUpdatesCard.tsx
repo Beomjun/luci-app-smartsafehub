@@ -2,10 +2,12 @@ import { useEffect, useState } from 'preact/hooks';
 
 import type { SoftwareUpdateAction } from '../hooks/useSoftwareUpdates';
 import type {
+  SoftwareUpdateError,
   SoftwareUpdateSettingsInput,
   SoftwareUpdateStatus,
 } from '../types/updates';
 import {
+  AlertIcon,
   CheckCircleIcon,
   ClockIcon,
   DownloadIcon,
@@ -46,6 +48,30 @@ function formatTimestamp(value: number | null): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
+}
+
+
+function updateErrorSummary(error: SoftwareUpdateError): { title: string; description: string } {
+  if (error.code === 'UPDATES_INDEX_REFRESH_FAILED') {
+    return {
+      title: '패키지 저장소를 확인하지 못했습니다.',
+      description:
+        'OpenWrt 패키지 저장소 동기화 또는 네트워크 상태가 일시적으로 불안정할 수 있습니다. 잠시 후 업데이트 확인을 다시 실행해 주세요.',
+    };
+  }
+
+  if (error.code === 'UPDATES_INSTALL_FAILED') {
+    return {
+      title: 'SmartSafeHub 업데이트 설치에 실패했습니다.',
+      description:
+        '패키지 설치가 완료되지 않았습니다. 네트워크 연결과 저장 공간을 확인한 뒤 다시 시도해 주세요.',
+    };
+  }
+
+  return {
+    title: '최근 업데이트 작업을 완료하지 못했습니다.',
+    description: '잠시 후 다시 시도해 주세요. 문제가 반복되면 상세 정보를 확인해 주세요.',
+  };
 }
 
 function phaseLabel(data: SoftwareUpdateStatus): string {
@@ -144,11 +170,10 @@ export function SoftwareUpdatesCard({
     setAutoInstallTime(data.settings.autoInstallTime);
   }, [data, settingsDirty]);
 
-  const busy =
-    action === 'check' ||
-    action === 'install' ||
-    data?.phase === 'checking' ||
-    data?.phase === 'installing';
+  const checking = action === 'check' || data?.phase === 'checking';
+  const installing = action === 'install' || data?.phase === 'installing';
+  const busy = checking || installing;
+  const lastErrorSummary = data?.lastError ? updateErrorSummary(data.lastError) : null;
 
   const currentPackage = data?.packages.find((item) => item.name === UPDATE_PACKAGE) ??
     data?.packages[0] ??
@@ -182,8 +207,14 @@ export function SoftwareUpdatesCard({
                   </p>
                   {data ? (
                     <span
-                      class={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-extrabold ring-1 ring-inset ${phaseClass(data)}`}
+                      class={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-extrabold ring-1 ring-inset ${phaseClass(data)}`}
                     >
+                      {checking || installing ? (
+                        <span
+                          aria-hidden="true"
+                          class="size-3 animate-spin rounded-full border-2 border-current border-r-transparent"
+                        />
+                      ) : null}
                       {phaseLabel(data)}
                     </span>
                   ) : null}
@@ -205,8 +236,8 @@ export function SoftwareUpdatesCard({
                   onClick={onCheck}
                   type="button"
                 >
-                  <RefreshIcon class="size-4" />
-                  {data.phase === 'checking' || action === 'check' ? '확인 중' : '업데이트 확인'}
+                  <RefreshIcon class={`size-4 ${checking ? 'animate-spin' : ''}`} />
+                  {checking ? '확인 중...' : '업데이트 확인'}
                 </button>
 
                 {data.updateCount > 0 && !confirmingInstall ? (
@@ -216,8 +247,15 @@ export function SoftwareUpdatesCard({
                     onClick={() => setConfirmingInstall(true)}
                     type="button"
                   >
-                    <DownloadIcon class="size-4" />
-                    업데이트 설치
+                    {installing ? (
+                      <span
+                        aria-hidden="true"
+                        class="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                      />
+                    ) : (
+                      <DownloadIcon class="size-4" />
+                    )}
+                    {installing ? '설치 중...' : '업데이트 설치'}
                   </button>
                 ) : null}
               </div>
@@ -243,6 +281,37 @@ export function SoftwareUpdatesCard({
             </div>
           )}
 
+          {installing ? (
+            <div
+              aria-busy="true"
+              aria-live="polite"
+              class="mt-5 rounded-xl border border-sky-200 bg-sky-50 p-4 sm:p-5"
+            >
+              <div class="flex items-start gap-3">
+                <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-sky-700 ring-1 ring-inset ring-sky-200">
+                  <span
+                    aria-hidden="true"
+                    class="size-5 animate-spin rounded-full border-2 border-sky-200 border-t-sky-700"
+                  />
+                </span>
+                <div class="min-w-0">
+                  <h3 class="m-0 text-sm font-black text-sky-950">
+                    업데이트를 설치하고 있습니다.
+                  </h3>
+                  <p class="mt-1 mb-0 text-sm leading-6 text-sky-800">
+                    설치가 완료되면 이 화면이 자동으로 갱신됩니다. 작업 중에는 웹 연결이 잠시 끊길 수 있습니다.
+                  </p>
+                </div>
+              </div>
+              <div
+                aria-hidden="true"
+                class="ssh-update-progress-track mt-4"
+              >
+                <span class="ssh-update-progress-bar" />
+              </div>
+            </div>
+          ) : null}
+
           {error && !data ? (
             <div class="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
               <p class="m-0 font-bold">{error}</p>
@@ -260,12 +329,40 @@ export function SoftwareUpdatesCard({
             </div>
           ) : data ? (
             <>
-              {data.lastError ? (
-                <div class="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4">
-                  <p class="m-0 text-sm font-extrabold text-rose-900">최근 업데이트 작업 실패</p>
-                  <p class="mt-2 mb-0 break-words text-sm leading-6 text-rose-700">
-                    {data.lastError.message}
-                  </p>
+              {data.lastError && lastErrorSummary ? (
+                <div class="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 sm:p-5">
+                  <div class="flex items-start gap-3">
+                    <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-rose-700 ring-1 ring-inset ring-rose-200">
+                      <AlertIcon class="size-5" />
+                    </span>
+                    <div class="min-w-0 flex-1">
+                      <p class="m-0 text-sm font-extrabold text-rose-950">
+                        {lastErrorSummary.title}
+                      </p>
+                      <p class="mt-1 mb-0 text-sm leading-6 text-rose-800">
+                        {lastErrorSummary.description}
+                      </p>
+                      {data.lastError.at ? (
+                        <p class="mt-2 mb-0 text-xs font-bold text-rose-700">
+                          발생 시각 {formatTimestamp(data.lastError.at)}
+                        </p>
+                      ) : null}
+
+                      <details class="mt-3 rounded-lg border border-rose-200 bg-white p-3">
+                        <summary class="cursor-pointer text-xs font-extrabold text-rose-800">
+                          상세 정보 보기
+                        </summary>
+                        <div class="mt-3 grid gap-2 text-xs leading-5 text-slate-600">
+                          <p class="m-0">
+                            오류 코드 <strong class="font-black text-slate-900">{data.lastError.code}</strong>
+                          </p>
+                          <pre class="m-0 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 font-mono text-[11px] leading-5 text-slate-700">
+                            {data.lastError.message}
+                          </pre>
+                        </div>
+                      </details>
+                    </div>
+                  </div>
                 </div>
               ) : null}
 

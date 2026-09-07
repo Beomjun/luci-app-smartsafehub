@@ -39,7 +39,7 @@ export function useSoftwareUpdates(active = true) {
         return;
       }
 
-      resource.replaceData({ ...resource.data, phase });
+      resource.replaceData({ ...resource.data, phase, lastError: null });
     },
     [resource],
   );
@@ -75,7 +75,6 @@ export function useSoftwareUpdates(active = true) {
       }
       markPhase('installing');
       setAction(null);
-      setMessage('업데이트 설치를 시작했습니다. 완료 후 화면을 새로고침해 주세요.');
       window.setTimeout(() => void resource.refresh(), 750);
     } catch (error) {
       setAction(null);

@@ -8,13 +8,14 @@ UPDATE_PAGE="$ROOT_DIR/frontend/src/pages/UpdatePage.tsx"
 SETTINGS_PAGE="$ROOT_DIR/frontend/src/pages/SettingsPage.tsx"
 UPDATES_HOOK="$ROOT_DIR/frontend/src/hooks/useSoftwareUpdates.ts"
 ASYNC_RESOURCE="$ROOT_DIR/frontend/src/hooks/useAsyncResource.ts"
+APP_CSS="$ROOT_DIR/frontend/src/styles/app.css"
 
 fail() {
 	echo "FAIL: $*" >&2
 	exit 1
 }
 
-for file in "$UPDATES_CARD" "$UPDATE_PAGE" "$SETTINGS_PAGE" "$UPDATES_HOOK" "$ASYNC_RESOURCE"; do
+for file in "$UPDATES_CARD" "$UPDATE_PAGE" "$SETTINGS_PAGE" "$UPDATES_HOOK" "$ASYNC_RESOURCE" "$APP_CSS"; do
 	[ -f "$file" ] || fail "missing required file: ${file#$ROOT_DIR/}"
 done
 
@@ -30,6 +31,35 @@ grep -Fq '업데이트 확인' "$UPDATES_CARD" || \
 	fail 'update card must provide an explicit check action'
 grep -Fq '업데이트 설치' "$UPDATES_CARD" || \
 	fail 'update card must provide an explicit install action'
+
+# Busy update work should have persistent visual feedback rather than relying on hover text.
+grep -Fq "const installing = action === 'install' || data?.phase === 'installing';" "$UPDATES_CARD" || \
+	fail 'update card must track installing state explicitly'
+grep -Fq "{installing ? '설치 중...' : '업데이트 설치'}" "$UPDATES_CARD" || \
+	fail 'install button must expose an installing label'
+grep -Fq 'aria-busy="true"' "$UPDATES_CARD" || \
+	fail 'installing update panel must expose busy state to assistive technology'
+grep -Fq 'ssh-update-progress-track' "$UPDATES_CARD" || \
+	fail 'installing update panel must include indeterminate progress feedback'
+grep -Fq '설치가 완료되면 이 화면이 자동으로 갱신됩니다.' "$UPDATES_CARD" || \
+	fail 'installing copy must explain automatic status refresh'
+grep -Fq '@keyframes ssh-update-progress' "$APP_CSS" || \
+	fail 'update progress indicator must define an indeterminate animation'
+if grep -Fq '완료 후 화면을 새로고침해 주세요.' "$UPDATES_HOOK"; then
+	fail 'install start feedback must not ask the user to refresh manually'
+fi
+
+# Repository and install failures should show product-friendly summaries while preserving raw details.
+grep -Fq "error.code === 'UPDATES_INDEX_REFRESH_FAILED'" "$UPDATES_CARD" || \
+	fail 'repository refresh errors must have a dedicated product summary'
+grep -Fq '패키지 저장소를 확인하지 못했습니다.' "$UPDATES_CARD" || \
+	fail 'repository errors must render a user-facing summary'
+grep -Fq '상세 정보 보기' "$UPDATES_CARD" || \
+	fail 'raw updater failure details must stay available behind a disclosure'
+grep -Fq 'phase, lastError: null' "$UPDATES_HOOK" || \
+	fail 'starting a new update action must clear stale failure feedback immediately'
+grep -Fq '{data.lastError.message}' "$UPDATES_CARD" || \
+	fail 'raw updater error must remain available in the details disclosure'
 
 # An unchecked repository state must stay neutral and must not be presented as current.
 grep -Fq "return data.lastCheckAt ? '최신 상태' : '확인 전';" "$UPDATES_CARD" || \
