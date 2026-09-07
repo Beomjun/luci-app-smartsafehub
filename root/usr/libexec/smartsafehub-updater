@@ -207,6 +207,36 @@ file_size_is_valid() {
 	[ "$size" -gt 0 ] && [ "$size" -le "$max_bytes" ]
 }
 
+release_notes_cache_matches_range() {
+	local installed="$1" available="$2" cached_installed cached_available
+
+	[ -f "$RELEASE_NOTES_FILE" ] || return 1
+	file_size_is_valid "$RELEASE_NOTES_FILE" "$RELEASE_NOTES_MAX_BYTES" || return 1
+
+	cached_installed="$(
+		awk -F '"' '/"installed_version"[[:space:]]*:/ { print $4; exit }' \
+			"$RELEASE_NOTES_FILE" 2>/dev/null || true
+	)"
+	cached_available="$(
+		awk -F '"' '/"available_version"[[:space:]]*:/ { print $4; exit }' \
+			"$RELEASE_NOTES_FILE" 2>/dev/null || true
+	)"
+
+	[ "$cached_installed" = "$installed" ] && [ "$cached_available" = "$available" ]
+}
+
+preserve_release_notes_cache_or_remove() {
+	local installed="$1" available="$2" reason="$3"
+
+	if release_notes_cache_matches_range "$installed" "$available"; then
+		log_message "release note refresh unavailable for $installed -> $available; keeping cached bundle ($reason)"
+		return 0
+	fi
+
+	rm -f "$RELEASE_NOTES_FILE"
+	return 0
+}
+
 select_release_versions() {
 	local index_file="$1" installed="$2" available="$3" output_file="$4"
 	local versions_file candidate_file version started found_installed count truncated
@@ -298,7 +328,7 @@ refresh_release_notes() {
 	umask 022
 	rm -rf "$work_dir"
 	mkdir -p "$work_dir" || {
-		rm -f "$RELEASE_NOTES_FILE"
+		preserve_release_notes_cache_or_remove "$installed" "$available" 'work directory unavailable'
 		return 0
 	}
 
@@ -344,7 +374,8 @@ refresh_release_notes() {
 
 	if [ "$note_count" -eq 0 ]; then
 		rm -rf "$work_dir"
-		rm -f "$bundle_tmp" "$RELEASE_NOTES_FILE"
+		rm -f "$bundle_tmp"
+		preserve_release_notes_cache_or_remove "$installed" "$available" 'no release notes fetched'
 		return 0
 	fi
 
@@ -375,8 +406,9 @@ refresh_release_notes() {
 	esac
 	if [ "$size" -le 0 ] || [ "$size" -gt "$RELEASE_NOTES_MAX_BYTES" ]; then
 		rm -rf "$work_dir"
-		rm -f "$bundle_tmp" "$RELEASE_NOTES_FILE"
+		rm -f "$bundle_tmp"
 		log_message "release note bundle rejected: invalid size $size"
+		preserve_release_notes_cache_or_remove "$installed" "$available" 'invalid bundle size'
 		return 0
 	fi
 
@@ -441,8 +473,12 @@ perform_check_locked() {
 
 	if ! refresh_indexes "$log_file"; then
 		message="$(apk_error_message "$log_file")"
+		state_package_lines > "$packages_file"
+		if [ -s "$packages_file" ]; then
+			refresh_release_notes "$packages_file"
+		fi
 		write_state error "$(state_value last_check_at)" "$last_install_at" \
-			'UPDATES_INDEX_REFRESH_FAILED' "$message"
+			'UPDATES_INDEX_REFRESH_FAILED' "$message" "$packages_file"
 		rm -f "$log_file" "$packages_file"
 		log_message "update check failed: $message"
 		return 1

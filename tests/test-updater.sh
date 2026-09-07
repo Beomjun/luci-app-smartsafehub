@@ -123,6 +123,10 @@ command="${1:-}"
 shift || true
 case "$command" in
 	update)
+		if [ "${MOCK_APK_UPDATE_FAIL:-0}" = '1' ]; then
+			echo 'ERROR: temporary repository index refresh failure' >&2
+			exit 1
+		fi
 		exit 0
 		;;
 	list)
@@ -207,11 +211,31 @@ assert_not_contains "$TMP/release-notes.json" "\"version\": \"0.2.3-r1\""
 assert_contains "$TMP/release-notes.json" "\"version\": \"0.2.2-r1\""
 assert_contains "$TMP/release-notes.json" '"complete": false'
 
-# Release note metadata is display-only: a fetch failure must not fail update detection.
-rm -f "$TMP/release-notes.json"
+# Release note metadata is display-only: a temporary fetch failure must keep a matching last-known-good cache.
+cp "$TMP/release-notes.json" "$TMP/release-notes.before.json"
 MOCK_FETCH_FAIL=1 "$UPDATER" check
 assert_contains "$TMP/updates.state" "package${TAB}luci-app-smartsafehub${TAB}0.2.1-r1${TAB}${RELEASE_VERSION}${TAB}1"
-[ ! -e "$TMP/release-notes.json" ] || fail 'failed release note download must not leave a stale cache'
+cmp -s "$TMP/release-notes.before.json" "$TMP/release-notes.json" || \
+	fail 'matching release note cache must survive a temporary release-note fetch failure'
+
+# A cached bundle from another installed/available range must not be reused.
+printf '%s\n' '9.9.9-r1' > "$TMP/pkg/luci-app-smartsafehub.available"
+"$UPDATER" check
+[ ! -e "$TMP/release-notes.json" ] || fail 'release note cache from a different version range must be removed'
+printf '%s\n' "$RELEASE_VERSION" > "$TMP/pkg/luci-app-smartsafehub.available"
+"$UPDATER" check
+
+# APK index refresh failures must still refresh release notes from the last known package state.
+rm -f "$TMP/release-notes.json"
+if MOCK_APK_UPDATE_FAIL=1 "$UPDATER" check; then
+	fail 'APK index refresh failure must still report a failed update check'
+fi
+assert_contains "$TMP/updates.state" "phase${TAB}error"
+assert_contains "$TMP/updates.state" "error_code${TAB}UPDATES_INDEX_REFRESH_FAILED"
+assert_contains "$TMP/updates.state" "package${TAB}luci-app-smartsafehub${TAB}0.2.1-r1${TAB}${RELEASE_VERSION}${TAB}1"
+assert_contains "$TMP/release-notes.json" "\"installed_version\": \"0.2.1-r1\""
+assert_contains "$TMP/release-notes.json" "\"available_version\": \"${RELEASE_VERSION}\""
+assert_contains "$TMP/release-notes.json" "\"version\": \"${RELEASE_VERSION}\""
 
 # The channel selected in smartsafehub.list is the release-note source of truth.
 # A stale/legacy stable repository elsewhere must not override a beta switch.
