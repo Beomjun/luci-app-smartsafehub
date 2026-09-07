@@ -12,7 +12,8 @@ import {
   MoonIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
-  RefreshIcon,
+  LoaderIcon,
+  ReloadIcon,
   SettingsIcon,
   ShieldIcon,
   SunIcon,
@@ -221,7 +222,11 @@ export function ProductNavigation({
               title={refreshing ? '새로고침 중' : '새로고침'}
               type="button"
             >
-              <RefreshIcon class={`size-5 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? (
+                <LoaderIcon class="size-5 animate-spin" />
+              ) : (
+                <ReloadIcon class="size-5" />
+              )}
             </button>
             <button
               aria-controls="smartsafehub-mobile-menu"

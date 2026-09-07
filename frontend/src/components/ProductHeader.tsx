@@ -1,4 +1,4 @@
-import { MoonIcon, RefreshIcon, SunIcon } from './Icons';
+import { LoaderIcon, MoonIcon, ReloadIcon, SunIcon } from './Icons';
 
 interface ProductHeaderProps {
   description: string;
@@ -57,7 +57,11 @@ export function ProductHeader({
             title={refreshing ? '새로고침 중' : '새로고침'}
             type="button"
           >
-            <RefreshIcon class={`size-4.5 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? (
+              <LoaderIcon class="size-4.5 animate-spin" />
+            ) : (
+              <ReloadIcon class="size-4.5" />
+            )}
           </button>
         </div>
       </div>

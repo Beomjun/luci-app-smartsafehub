@@ -12,7 +12,7 @@ import {
   ClockIcon,
   DownloadIcon,
   LoaderIcon,
-  RefreshIcon,
+  ReloadIcon,
   SettingsIcon,
   UpdateIcon,
 } from './Icons';
@@ -253,7 +253,7 @@ export function SoftwareUpdatesCard({
                   {checking ? (
                     <LoaderIcon class="size-4 animate-spin" />
                   ) : (
-                    <RefreshIcon class="size-4" />
+                    <ReloadIcon class="size-4" />
                   )}
                   {checking ? '확인 중...' : '업데이트 확인'}
                 </button>
@@ -571,7 +571,7 @@ export function SoftwareUpdatesCard({
               <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div class="flex min-w-0 gap-3">
                   <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-slate-500 ring-1 ring-inset ring-slate-200">
-                    <RefreshIcon class="size-5" />
+                    <ReloadIcon class="size-5" />
                   </span>
                   <div class="min-w-0">
                     <h3 class="m-0 text-base font-black text-slate-900">업데이트 상태를 아직 확인하지 않았습니다.</h3>
@@ -586,7 +586,7 @@ export function SoftwareUpdatesCard({
                   onClick={onCheck}
                   type="button"
                 >
-                  <RefreshIcon class="size-4" />
+                  <ReloadIcon class="size-4" />
                   지금 확인
                 </button>
               </div>

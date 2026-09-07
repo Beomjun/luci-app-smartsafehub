@@ -29,12 +29,18 @@ done
 
 grep -Fq '업데이트 확인' "$UPDATES_CARD" || \
 	fail 'update card must provide an explicit check action'
+grep -Fq 'ReloadIcon class="size-4"' "$UPDATES_CARD" || \
+	fail 'update card check actions must use the shared reload icon'
 grep -Fq '업데이트 설치' "$UPDATES_CARD" || \
 	fail 'update card must provide an explicit install action'
 
 # Busy update work should have persistent visual feedback rather than relying on hover text.
 grep -Fq "const installing = action === 'install' || data?.phase === 'installing';" "$UPDATES_CARD" || \
 	fail 'update card must track installing state explicitly'
+grep -Fq 'function updatePhaseIcon(data: SoftwareUpdateStatus)' "$UPDATES_CARD" || \
+	fail 'update card must provide an explicit status icon for each update phase'
+grep -Fq 'LoaderIcon class="size-3.5 shrink-0 animate-spin"' "$UPDATES_CARD" || \
+	fail 'checking/installing status badge must render a visible loader icon'
 grep -Fq "{installing ? '설치 중...' : '업데이트 설치'}" "$UPDATES_CARD" || \
 	fail 'install button must expose an installing label'
 grep -Fq 'aria-busy="true"' "$UPDATES_CARD" || \
@@ -76,6 +82,8 @@ grep -Fq ') : data.lastCheckAt ? (' "$UPDATES_CARD" || \
 	fail 'current-version success notice must require a completed update check'
 grep -Fq '업데이트 상태를 아직 확인하지 않았습니다.' "$UPDATES_CARD" || \
 	fail 'unchecked update state must render a neutral explanatory notice'
+grep -Fq 'ReloadIcon class="size-5"' "$UPDATES_CARD" || \
+	fail 'unchecked update state notice must use the shared reload icon'
 grep -Fq '지금 확인' "$UPDATES_CARD" || \
 	fail 'unchecked update state must offer an explicit check action'
 
