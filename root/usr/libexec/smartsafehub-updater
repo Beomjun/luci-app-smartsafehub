@@ -80,6 +80,14 @@ state_package_lines() {
 	awk -F '\t' '$1 == "package" { print }' "$STATE_FILE" 2>/dev/null || true
 }
 
+state_package_field() {
+	local package="$1" field="$2"
+	[ -f "$STATE_FILE" ] || return 0
+	awk -F '\t' -v package="$package" -v field="$field" \
+		'$1 == "package" && $2 == package { print $field; exit }' \
+		"$STATE_FILE" 2>/dev/null || true
+}
+
 sanitize_field() {
 	printf '%s' "$1" | tr '\r\n\t' '   ' | cut -c 1-300
 }
@@ -463,6 +471,29 @@ collect_packages() {
 		"$UPDATE_PACKAGE" "$installed" "$available" "$update_available" >> "$output_file"
 }
 
+collect_packages_with_live_installed() {
+	local output_file="$1" installed cached_installed cached_available cached_update_available
+	: > "$output_file"
+
+	installed="$(installed_version "$UPDATE_PACKAGE")"
+	[ -n "$installed" ] || return 0
+
+	cached_installed="$(state_package_field "$UPDATE_PACKAGE" 3)"
+	cached_available="$(state_package_field "$UPDATE_PACKAGE" 4)"
+	cached_update_available="$(state_package_field "$UPDATE_PACKAGE" 5)"
+
+	if [ "$installed" != "$cached_installed" ]; then
+		cached_available=''
+		cached_update_available=0
+	elif [ "$cached_update_available" != '1' ] || [ -z "$cached_available" ]; then
+		cached_available=''
+		cached_update_available=0
+	fi
+
+	printf 'package\t%s\t%s\t%s\t%s\n' \
+		"$UPDATE_PACKAGE" "$installed" "$cached_available" "$cached_update_available" >> "$output_file"
+}
+
 perform_check_locked() {
 	local log_file packages_file now last_install_at message
 	log_file="/tmp/smartsafehub-updater-apk.$$.log"
@@ -473,7 +504,7 @@ perform_check_locked() {
 
 	if ! refresh_indexes "$log_file"; then
 		message="$(apk_error_message "$log_file")"
-		state_package_lines > "$packages_file"
+		collect_packages_with_live_installed "$packages_file"
 		if [ -s "$packages_file" ]; then
 			refresh_release_notes "$packages_file"
 		fi
@@ -513,8 +544,12 @@ perform_install_locked() {
 
 	if ! refresh_indexes "$log_file"; then
 		message="$(apk_error_message "$log_file")"
+		collect_packages_with_live_installed "$packages_file"
+		if [ -s "$packages_file" ]; then
+			refresh_release_notes "$packages_file"
+		fi
 		write_state error "$(state_value last_check_at)" "$(state_value last_install_at)" \
-			'UPDATES_INDEX_REFRESH_FAILED' "$message"
+			'UPDATES_INDEX_REFRESH_FAILED' "$message" "$packages_file"
 		rm -f "$log_file" "$packages_file" "$after_file"
 		log_message "update install failed while refreshing indexes: $message"
 		return 1

@@ -173,6 +173,8 @@ export function SoftwareUpdatesCard({
   const checking = action === 'check' || data?.phase === 'checking';
   const installing = action === 'install' || data?.phase === 'installing';
   const busy = checking || installing;
+  const repositoryCheckFailed =
+    data?.phase === 'error' && data.lastError?.code === 'UPDATES_INDEX_REFRESH_FAILED';
   const lastErrorSummary = data?.lastError ? updateErrorSummary(data.lastError) : null;
 
   const currentPackage = data?.packages.find((item) => item.name === UPDATE_PACKAGE) ??
@@ -421,7 +423,7 @@ export function SoftwareUpdatesCard({
                 <dd class={`mt-2 mb-0 ml-0 break-all text-sm font-black ${
                   currentPackage?.updateAvailable ? 'text-amber-700' : 'text-slate-950'
                 }`}>
-                  {!data.lastCheckAt
+                  {!data.lastCheckAt || (repositoryCheckFailed && !currentPackage?.updateAvailable)
                     ? '미확인'
                     : currentPackage?.updateAvailable && currentPackage.availableVersion
                       ? currentPackage.availableVersion

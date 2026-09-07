@@ -68,6 +68,10 @@ grep -Fq "if (!data.lastCheckAt)" "$UPDATES_CARD" || \
 	fail 'unchecked update badge must use a dedicated neutral style'
 grep -Fq "? '미확인'" "$UPDATES_CARD" || \
 	fail 'available version must remain unknown before the first successful check'
+grep -Fq "data.lastError?.code === 'UPDATES_INDEX_REFRESH_FAILED'" "$UPDATES_CARD" || \
+	fail 'repository refresh failure must keep unavailable version information explicitly unknown'
+grep -Fq "repositoryCheckFailed && !currentPackage?.updateAvailable" "$UPDATES_CARD" || \
+	fail 'failed repository refresh must not present an unknown available version as current'
 grep -Fq ') : data.lastCheckAt ? (' "$UPDATES_CARD" || \
 	fail 'current-version success notice must require a completed update check'
 grep -Fq '업데이트 상태를 아직 확인하지 않았습니다.' "$UPDATES_CARD" || \

@@ -237,6 +237,19 @@ assert_contains "$TMP/release-notes.json" "\"installed_version\": \"0.2.1-r1\""
 assert_contains "$TMP/release-notes.json" "\"available_version\": \"${RELEASE_VERSION}\""
 assert_contains "$TMP/release-notes.json" "\"version\": \"${RELEASE_VERSION}\""
 
+# The installed version must be reconciled from the local APK database even when index refresh fails.
+printf '%s\n' "$RELEASE_VERSION" > "$TMP/pkg/luci-app-smartsafehub.installed"
+if MOCK_APK_UPDATE_FAIL=1 "$UPDATER" check; then
+	fail 'APK index refresh failure must still report a failed update check after a local package change'
+fi
+assert_contains "$TMP/updates.state" "phase${TAB}error"
+assert_contains "$TMP/updates.state" "package${TAB}luci-app-smartsafehub${TAB}${RELEASE_VERSION}${TAB}${TAB}0"
+[ ! -e "$TMP/release-notes.json" ] || fail 'release notes for the previous installed version must be removed after a local package change'
+
+# Restore the original installed version for the remaining channel/install checks.
+printf '%s\n' '0.2.1-r1' > "$TMP/pkg/luci-app-smartsafehub.installed"
+"$UPDATER" check
+
 # The channel selected in smartsafehub.list is the release-note source of truth.
 # A stale/legacy stable repository elsewhere must not override a beta switch.
 printf '%s\n' 'https://repo.smartsafehub.com/stable/packages/x86_64/smartsafehub/packages.adb' > "$TMP/repos/00-legacy-stable.list"

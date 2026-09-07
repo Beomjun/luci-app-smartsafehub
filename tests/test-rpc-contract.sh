@@ -56,8 +56,8 @@ grep -Fq 'state.releaseNotesComplete = release_notes.complete;' "$UPDATES_MODULE
 	fail 'updates_status must expose release-note completeness'
 grep -Fq 'refresh_release_notes "$packages_file"' "$UPDATER" || \
 	fail 'updater must refresh display-only release notes after package checks'
-grep -Fq 'state_package_lines > "$packages_file"' "$UPDATER" || \
-	fail 'failed APK index refresh must reuse last-known package state for release notes'
+grep -Fq 'collect_packages_with_live_installed "$packages_file"' "$UPDATER" || \
+	fail 'failed APK index refresh must reconcile live installed state before reusing cached update metadata'
 grep -Fq 'preserve_release_notes_cache_or_remove' "$UPDATER" || \
 	fail 'temporary release-note failures must preserve a matching last-known-good cache'
 grep -Fq '/releases/${UPDATE_PACKAGE}/index.json' "$UPDATER" || \
