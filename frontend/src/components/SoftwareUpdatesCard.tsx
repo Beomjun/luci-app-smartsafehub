@@ -11,6 +11,7 @@ import {
   CheckCircleIcon,
   ClockIcon,
   DownloadIcon,
+  LoaderIcon,
   RefreshIcon,
   SettingsIcon,
   UpdateIcon,
@@ -104,6 +105,22 @@ function phaseClass(data: SoftwareUpdateStatus): string {
     return 'bg-slate-100 text-slate-600 ring-slate-200';
   }
   return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+}
+
+function updatePhaseIcon(data: SoftwareUpdateStatus) {
+  if (data.phase === 'checking' || data.phase === 'installing') {
+    return <LoaderIcon class="size-3.5 shrink-0 animate-spin" />;
+  }
+  if (data.phase === 'error') {
+    return <AlertIcon class="size-3.5 shrink-0" />;
+  }
+  if (data.updateCount > 0) {
+    return <DownloadIcon class="size-3.5 shrink-0" />;
+  }
+  if (!data.lastCheckAt) {
+    return <ClockIcon class="size-3.5 shrink-0" />;
+  }
+  return <CheckCircleIcon class="size-3.5 shrink-0" />;
 }
 
 function SettingSwitch({
@@ -211,12 +228,7 @@ export function SoftwareUpdatesCard({
                     <span
                       class={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-extrabold ring-1 ring-inset ${phaseClass(data)}`}
                     >
-                      {checking || installing ? (
-                        <span
-                          aria-hidden="true"
-                          class="size-3 animate-spin rounded-full border-2 border-current border-r-transparent"
-                        />
-                      ) : null}
+                      <span aria-hidden="true" class="flex items-center justify-center">{updatePhaseIcon(data)}</span>
                       {phaseLabel(data)}
                     </span>
                   ) : null}
@@ -238,7 +250,11 @@ export function SoftwareUpdatesCard({
                   onClick={onCheck}
                   type="button"
                 >
-                  <RefreshIcon class={`size-4 ${checking ? 'animate-spin' : ''}`} />
+                  {checking ? (
+                    <LoaderIcon class="size-4 animate-spin" />
+                  ) : (
+                    <RefreshIcon class="size-4" />
+                  )}
                   {checking ? '확인 중...' : '업데이트 확인'}
                 </button>
 
@@ -250,10 +266,7 @@ export function SoftwareUpdatesCard({
                     type="button"
                   >
                     {installing ? (
-                      <span
-                        aria-hidden="true"
-                        class="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
-                      />
+                      <LoaderIcon class="size-4 animate-spin" />
                     ) : (
                       <DownloadIcon class="size-4" />
                     )}
@@ -291,10 +304,7 @@ export function SoftwareUpdatesCard({
             >
               <div class="flex items-start gap-3">
                 <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-sky-700 ring-1 ring-inset ring-sky-200">
-                  <span
-                    aria-hidden="true"
-                    class="size-5 animate-spin rounded-full border-2 border-sky-200 border-t-sky-700"
-                  />
+                  <LoaderIcon aria-hidden="true" class="size-5 animate-spin" />
                 </span>
                 <div class="min-w-0">
                   <h3 class="m-0 text-sm font-black text-sky-950">
@@ -326,8 +336,11 @@ export function SoftwareUpdatesCard({
               </button>
             </div>
           ) : loading && !data ? (
-            <div class="mt-5 rounded-xl bg-slate-50 p-4 text-sm font-bold text-slate-500">
-              업데이트 상태를 확인하고 있습니다.
+            <div class="mt-5 flex items-center gap-3 rounded-xl bg-slate-50 p-4 text-sm font-bold text-slate-500">
+              <span class="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-teal-700 ring-1 ring-inset ring-slate-200">
+                <LoaderIcon aria-hidden="true" class="size-4 animate-spin" />
+              </span>
+              <span>업데이트 상태를 확인하고 있습니다.</span>
             </div>
           ) : data ? (
             <>

@@ -209,6 +209,17 @@ export function CalendarIcon(props: IconProps) {
   );
 }
 
+
+export function LoaderIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <circle cx="12" cy="12" opacity="0.22" r="8" />
+      <path d="M12 4a8 8 0 0 1 8 8" />
+      <path d="M18.5 5.5 20 4l1.5 1.5" />
+    </IconBase>
+  );
+}
+
 export function CheckCircleIcon(props: IconProps) {
   return (
     <IconBase {...props}>
