@@ -67,7 +67,7 @@ if grep -Eq '^[[:space:]]*(apk|"\$APK_BIN"|\$APK_BIN)[[:space:]]+upgrade([[:spac
 	fail 'full-system apk upgrade must not be used by SmartSafeHub updater'
 fi
 
-grep -Fq '"$APK_BIN" add --upgrade "$UPDATE_PACKAGE"' "$UPDATER" || \
-	fail 'updater must use targeted apk add --upgrade for luci-app-smartsafehub'
+grep -Fq '"$APK_BIN" upgrade "$UPDATE_PACKAGE"' "$UPDATER" || \
+	fail 'updater must use targeted apk upgrade for luci-app-smartsafehub'
 
 echo 'PASS: rpc registration, ACL permissions and targeted package update contract are consistent'

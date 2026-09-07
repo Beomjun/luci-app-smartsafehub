@@ -148,16 +148,14 @@ case "$command" in
 		fi
 		exit 2
 		;;
-	add)
-		[ "${1:-}" = '--upgrade' ] || exit 2
-		shift
-		printf 'add --upgrade' > "${MOCK_APK_LOG:?}"
+	upgrade)
+		printf 'upgrade' > "${MOCK_APK_LOG:?}"
 		for package in "$@"; do
 			printf ' %s' "$package" >> "$MOCK_APK_LOG"
-			if [ -f "$root/$package.available" ]; then
+			if [ "${MOCK_APK_UPGRADE_NOOP:-0}" != '1' ] && [ -f "$root/$package.available" ]; then
 				cp "$root/$package.available" "$root/$package.installed"
 			fi
-			if [ "$package" = 'luci-app-smartsafehub' ] && [ -f "$root/safeshield.available" ]; then
+			if [ "${MOCK_APK_UPGRADE_NOOP:-0}" != '1' ] && [ "$package" = 'luci-app-smartsafehub' ] && [ -f "$root/safeshield.available" ]; then
 				cp "$root/safeshield.available" "$root/safeshield.installed"
 			fi
 		done
@@ -179,6 +177,8 @@ export SMARTSAFEHUB_UPDATER_STATE_FILE="$TMP/updates.state"
 export SMARTSAFEHUB_UPDATER_RELEASE_NOTES_FILE="$TMP/release-notes.json"
 export SMARTSAFEHUB_UPDATER_LOCK_DIR="$TMP/updater.lock"
 export SMARTSAFEHUB_UPDATER_AUTO_MARKER="$TMP/auto-date"
+export SMARTSAFEHUB_UPDATER_AUTO_RETRY_MARKER="$TMP/auto-retry-at"
+export SMARTSAFEHUB_UPDATER_AUTO_RETRY_COUNT_MARKER="$TMP/auto-retry-count"
 export SMARTSAFEHUB_UPDATER_REPOSITORY_DIR="$TMP/repos"
 export SMARTSAFEHUB_UPDATER_APK_BIN="$TMP/bin/apk"
 export SMARTSAFEHUB_UPDATER_UCLIENT_FETCH_BIN="$TMP/bin/uclient-fetch"
@@ -262,7 +262,7 @@ assert_not_contains "$TMP/fetch.log" 'https://repo.smartsafehub.com/stable/relea
 assert_contains "$TMP/release-notes.json" "\"available_version\": \"${RELEASE_VERSION}\""
 
 "$UPDATER" install
-assert_contains "$TMP/apk.log" 'add --upgrade luci-app-smartsafehub'
+assert_contains "$TMP/apk.log" 'upgrade luci-app-smartsafehub'
 assert_not_contains "$TMP/apk.log" ' safeshield'
 [ "$(cat "$TMP/pkg/safeshield.installed")" = "$SAFESHIELD_MIN_VERSION" ] || fail 'safeshield dependency did not reach the required minimum version'
 assert_contains "$TMP/updates.state" "package${TAB}luci-app-smartsafehub${TAB}${RELEASE_VERSION}${TAB}${TAB}0"
@@ -271,4 +271,119 @@ assert_contains "$TMP/updates.state" "package${TAB}luci-app-smartsafehub${TAB}${
 last_install_at="$(awk -F '\t' '$1 == "last_install_at" { print $2 }' "$TMP/updates.state")"
 [ "${last_install_at:-0}" -gt 0 ] || fail 'last_install_at was not recorded'
 
-echo "PASS: updater tracks SmartSafeHub, bundles skipped release notes fail-open, and enforces safeshield >= $SAFESHIELD_MIN_VERSION through package metadata"
+# apk can return success without changing the installed package. Treat that as an install failure.
+printf '%s\n' '0.2.1-r1' > "$TMP/pkg/luci-app-smartsafehub.installed"
+printf '%s\n' '0.0.0' > "$TMP/pkg/safeshield.installed"
+"$UPDATER" check
+last_install_before_noop="$(awk -F '\t' '$1 == "last_install_at" { print $2 }' "$TMP/updates.state")"
+if MOCK_APK_UPGRADE_NOOP=1 "$UPDATER" install; then
+	fail 'an apk upgrade no-op must not be reported as a successful install'
+fi
+assert_contains "$TMP/apk.log" 'upgrade luci-app-smartsafehub'
+assert_contains "$TMP/updates.state" "phase${TAB}error"
+assert_contains "$TMP/updates.state" "error_code${TAB}UPDATES_INSTALL_VERSION_UNCHANGED"
+assert_contains "$TMP/updates.state" "package${TAB}luci-app-smartsafehub${TAB}0.2.1-r1${TAB}${RELEASE_VERSION}${TAB}1"
+last_install_after_noop="$(awk -F '\t' '$1 == "last_install_at" { print $2 }' "$TMP/updates.state")"
+[ "$last_install_after_noop" = "$last_install_before_noop" ] || fail 'last_install_at must not change after an apk no-op'
+
+# Automatic installs must mark the date only after perform_install succeeds, throttle retries,
+# and stop after three real failed attempts on the same day. Lock contention does not consume an attempt.
+assert_contains "$UPDATER" 'AUTO_INSTALL_RETRY_S=900'
+assert_contains "$UPDATER" 'AUTO_INSTALL_MAX_ATTEMPTS=3'
+assert_contains "$UPDATER" 'AUTO_RETRY_COUNT_MARKER='
+assert_contains "$UPDATER" 'retry_count="$(read_auto_retry_count "$today")"'
+assert_contains "$UPDATER" '[ "$retry_count" -lt "$AUTO_INSTALL_MAX_ATTEMPTS" ] || return 0'
+assert_contains "$UPDATER" 'if [ "$result" -eq 0 ]; then'
+assert_contains "$UPDATER" "printf '%s\\n' \"\$today\" > \"\$AUTO_MARKER\""
+assert_contains "$UPDATER" 'elif [ "$result" -ne 75 ]; then'
+assert_contains "$UPDATER" 'retry_count=$((retry_count + 1))'
+assert_contains "$UPDATER" "printf '%s %s\\n' \"\$today\" \"\$retry_count\" > \"\$AUTO_RETRY_COUNT_MARKER\""
+assert_contains "$UPDATER" 'if [ "$retry_count" -lt "$AUTO_INSTALL_MAX_ATTEMPTS" ]; then'
+assert_contains "$UPDATER" "printf '%s\\n' \"\$current_epoch\" > \"\$AUTO_RETRY_MARKER\""
+assert_contains "$UPDATER" 'log_message "automatic update failed after $retry_count attempts; retrying tomorrow"'
+
+# Exercise the automatic retry state machine directly without entering the infinite daemon loop.
+sed '/^case "${1:-}" in$/,$d' "$UPDATER" > "$TMP/updater-lib.sh"
+# shellcheck disable=SC1090
+. "$TMP/updater-lib.sh"
+
+# The production updater intentionally does not use set -e; mirror that behavior for failed-install paths.
+set +e
+
+AUTO_INSTALL=1
+AUTO_INSTALL_TIME='03:00'
+AUTO_MARKER="$TMP/auto-date-behavior"
+AUTO_RETRY_MARKER="$TMP/auto-retry-at-behavior"
+AUTO_RETRY_COUNT_MARKER="$TMP/auto-retry-count-behavior"
+MOCK_AUTO_DATE='2026-09-08'
+MOCK_AUTO_TIME='03:00'
+MOCK_AUTO_EPOCH=100000
+MOCK_INSTALL_RESULT=1
+MOCK_INSTALL_CALLS=0
+
+date() {
+	case "${1:-}" in
+		+%Y-%m-%d) printf '%s\n' "$MOCK_AUTO_DATE" ;;
+		+%H:%M) printf '%s\n' "$MOCK_AUTO_TIME" ;;
+		+%s) printf '%s\n' "$MOCK_AUTO_EPOCH" ;;
+		*) command date "$@" ;;
+	esac
+}
+
+perform_install() {
+	MOCK_INSTALL_CALLS=$((MOCK_INSTALL_CALLS + 1))
+	return "$MOCK_INSTALL_RESULT"
+}
+
+log_message() {
+	:
+}
+
+rm -f "$AUTO_MARKER" "$AUTO_RETRY_MARKER" "$AUTO_RETRY_COUNT_MARKER"
+auto_install_if_due
+[ "$MOCK_INSTALL_CALLS" -eq 1 ] || fail 'first failed automatic install was not attempted'
+[ "$(cat "$AUTO_RETRY_COUNT_MARKER")" = '2026-09-08 1' ] || fail 'first failed automatic install was not counted'
+
+MOCK_AUTO_EPOCH=$((MOCK_AUTO_EPOCH + AUTO_INSTALL_RETRY_S))
+auto_install_if_due
+[ "$MOCK_INSTALL_CALLS" -eq 2 ] || fail 'second automatic install was not attempted after the retry cooldown'
+[ "$(cat "$AUTO_RETRY_COUNT_MARKER")" = '2026-09-08 2' ] || fail 'second failed automatic install was not counted'
+
+MOCK_AUTO_EPOCH=$((MOCK_AUTO_EPOCH + AUTO_INSTALL_RETRY_S))
+auto_install_if_due
+[ "$MOCK_INSTALL_CALLS" -eq 3 ] || fail 'third automatic install was not attempted after the retry cooldown'
+[ "$(cat "$AUTO_RETRY_COUNT_MARKER")" = '2026-09-08 3' ] || fail 'third failed automatic install was not counted'
+[ ! -e "$AUTO_RETRY_MARKER" ] || fail 'retry cooldown marker must be removed after the daily attempt limit is exhausted'
+
+MOCK_AUTO_EPOCH=$((MOCK_AUTO_EPOCH + AUTO_INSTALL_RETRY_S))
+auto_install_if_due
+[ "$MOCK_INSTALL_CALLS" -eq 3 ] || fail 'automatic install retried more than three times on the same day'
+
+MOCK_AUTO_DATE='2026-09-09'
+MOCK_AUTO_EPOCH=$((MOCK_AUTO_EPOCH + 86400))
+auto_install_if_due
+[ "$MOCK_INSTALL_CALLS" -eq 4 ] || fail 'automatic install attempt count did not reset on the next day'
+[ "$(cat "$AUTO_RETRY_COUNT_MARKER")" = '2026-09-09 1' ] || fail 'next-day automatic retry state was not reset to the first attempt'
+
+# Lock contention is not an installation attempt and must not consume the daily limit.
+rm -f "$AUTO_MARKER" "$AUTO_RETRY_MARKER" "$AUTO_RETRY_COUNT_MARKER"
+MOCK_INSTALL_CALLS=0
+MOCK_INSTALL_RESULT=75
+auto_install_if_due
+[ "$MOCK_INSTALL_CALLS" -eq 1 ] || fail 'lock-contention path did not call perform_install'
+[ ! -e "$AUTO_RETRY_COUNT_MARKER" ] || fail 'lock contention consumed an automatic install attempt'
+
+# A successful retry must complete the day and clean all retry state.
+MOCK_INSTALL_RESULT=1
+auto_install_if_due
+[ "$(cat "$AUTO_RETRY_COUNT_MARKER")" = '2026-09-09 1' ] || fail 'failed automatic install before recovery was not counted'
+MOCK_AUTO_EPOCH=$((MOCK_AUTO_EPOCH + AUTO_INSTALL_RETRY_S))
+MOCK_INSTALL_RESULT=0
+auto_install_if_due
+[ "$(cat "$AUTO_MARKER")" = '2026-09-09' ] || fail 'successful automatic install did not mark the day complete'
+[ ! -e "$AUTO_RETRY_MARKER" ] || fail 'successful automatic install did not clear the retry cooldown marker'
+[ ! -e "$AUTO_RETRY_COUNT_MARKER" ] || fail 'successful automatic install did not clear the retry count marker'
+
+set -e
+
+echo "PASS: updater uses apk upgrade, verifies the installed version, limits failed automatic installs to three attempts per day, and enforces safeshield >= $SAFESHIELD_MIN_VERSION through package metadata"

@@ -6,6 +6,8 @@ STATE_FILE="${SMARTSAFEHUB_UPDATER_STATE_FILE:-/tmp/smartsafehub-updates.state}"
 RELEASE_NOTES_FILE="${SMARTSAFEHUB_UPDATER_RELEASE_NOTES_FILE:-/tmp/smartsafehub-release-notes.json}"
 LOCK_DIR="${SMARTSAFEHUB_UPDATER_LOCK_DIR:-/tmp/smartsafehub-updater.lock}"
 AUTO_MARKER="${SMARTSAFEHUB_UPDATER_AUTO_MARKER:-/tmp/smartsafehub-updater-auto-date}"
+AUTO_RETRY_MARKER="${SMARTSAFEHUB_UPDATER_AUTO_RETRY_MARKER:-/tmp/smartsafehub-updater-auto-retry-at}"
+AUTO_RETRY_COUNT_MARKER="${SMARTSAFEHUB_UPDATER_AUTO_RETRY_COUNT_MARKER:-/tmp/smartsafehub-updater-auto-retry-count}"
 REPOSITORY_DIR="${SMARTSAFEHUB_UPDATER_REPOSITORY_DIR:-/etc/apk/repositories.d}"
 REPOSITORY_FILE="${SMARTSAFEHUB_UPDATER_REPOSITORY_FILE:-$REPOSITORY_DIR/smartsafehub.list}"
 APK_BIN="${SMARTSAFEHUB_UPDATER_APK_BIN:-apk}"
@@ -26,6 +28,8 @@ MIN_CHECK_INTERVAL_S=900
 MAX_CHECK_INTERVAL_S=604800
 DAEMON_TICK_S=60
 DAEMON_INITIAL_DELAY_S=30
+AUTO_INSTALL_RETRY_S=900
+AUTO_INSTALL_MAX_ATTEMPTS=3
 
 CHECK_ENABLED=1
 CHECK_INTERVAL_S="$DEFAULT_CHECK_INTERVAL_S"
@@ -536,7 +540,7 @@ perform_check() {
 }
 
 perform_install_locked() {
-	local log_file packages_file after_file now last_check_at message upgradable
+	local log_file packages_file after_file now last_check_at message upgradable target_version installed_after
 	log_file="/tmp/smartsafehub-updater-apk.$$.log"
 	packages_file="/tmp/smartsafehub-updater-packages.$$.state"
 	after_file="/tmp/smartsafehub-updater-packages-after.$$.state"
@@ -558,6 +562,7 @@ perform_install_locked() {
 	collect_packages "$packages_file"
 	refresh_release_notes "$packages_file"
 	upgradable="$(awk -F '\t' -v package="$UPDATE_PACKAGE" '$1 == "package" && $2 == package { print $5; exit }' "$packages_file")"
+	target_version="$(awk -F '\t' -v package="$UPDATE_PACKAGE" '$1 == "package" && $2 == package { print $4; exit }' "$packages_file")"
 
 	now="$(date +%s)"
 	last_check_at="$now"
@@ -568,7 +573,7 @@ perform_install_locked() {
 		return 0
 	fi
 
-	if ! "$APK_BIN" add --upgrade "$UPDATE_PACKAGE" > "$log_file" 2>&1; then
+	if ! "$APK_BIN" upgrade "$UPDATE_PACKAGE" > "$log_file" 2>&1; then
 		message="$(apk_error_message "$log_file")"
 		write_state error "$last_check_at" "$(state_value last_install_at)" \
 			'UPDATES_INSTALL_FAILED' "$message" "$packages_file"
@@ -578,6 +583,17 @@ perform_install_locked() {
 	fi
 
 	collect_packages "$after_file"
+	installed_after="$(awk -F '\t' -v package="$UPDATE_PACKAGE" '$1 == "package" && $2 == package { print $3; exit }' "$after_file")"
+	if [ -z "$target_version" ] || [ "$installed_after" != "$target_version" ]; then
+		refresh_release_notes "$after_file"
+		message="SmartSafeHub 패키지 버전이 업데이트 후에도 목표 버전 ${target_version:-unknown}과 일치하지 않습니다. 현재 버전: ${installed_after:-unknown}"
+		write_state error "$last_check_at" "$(state_value last_install_at)" \
+			'UPDATES_INSTALL_VERSION_UNCHANGED' "$message" "$after_file"
+		rm -f "$log_file" "$packages_file" "$after_file"
+		log_message "SmartSafeHub package update did not change to the expected version: ${installed_after:-unknown} -> ${target_version:-unknown}"
+		return 1
+	fi
+
 	refresh_release_notes "$after_file"
 	now="$(date +%s)"
 	write_state idle "$last_check_at" "$now" '' '' "$after_file"
@@ -605,12 +621,37 @@ time_to_number() {
 	printf '%s' "$1" | tr -d ':'
 }
 
+read_auto_retry_count() {
+	local today="$1" retry_date retry_count
+	retry_date=''
+	retry_count=0
+
+	if [ -f "$AUTO_RETRY_COUNT_MARKER" ]; then
+		read -r retry_date retry_count < "$AUTO_RETRY_COUNT_MARKER" || true
+	fi
+	case "$retry_count" in
+		''|*[!0-9]*) retry_count=0 ;;
+	esac
+
+	if [ "$retry_date" != "$today" ]; then
+		rm -f "$AUTO_RETRY_COUNT_MARKER" "$AUTO_RETRY_MARKER"
+		retry_count=0
+	fi
+
+	printf '%s\n' "$retry_count"
+}
+
 initialize_auto_marker() {
-	local today now target
+	local today now target retry_count
 	[ "$AUTO_INSTALL" = '1' ] || return 0
 	[ -f "$AUTO_MARKER" ] && return 0
 
 	today="$(date +%Y-%m-%d)"
+	retry_count="$(read_auto_retry_count "$today")"
+	if [ "$retry_count" -gt 0 ]; then
+		return 0
+	fi
+
 	now="$(time_to_number "$(date +%H:%M)")"
 	target="$(time_to_number "$AUTO_INSTALL_TIME")"
 	if [ "$now" -gt "$target" ]; then
@@ -619,24 +660,49 @@ initialize_auto_marker() {
 }
 
 auto_install_if_due() {
-	local today now target last_attempt result
+	local today now target last_attempt result current_epoch retry_at elapsed retry_count
 	[ "$AUTO_INSTALL" = '1' ] || return 0
 
 	today="$(date +%Y-%m-%d)"
 	last_attempt="$(cat "$AUTO_MARKER" 2>/dev/null || true)"
 	[ "$last_attempt" != "$today" ] || return 0
 
+	retry_count="$(read_auto_retry_count "$today")"
+	[ "$retry_count" -lt "$AUTO_INSTALL_MAX_ATTEMPTS" ] || return 0
+
 	now="$(time_to_number "$(date +%H:%M)")"
 	target="$(time_to_number "$AUTO_INSTALL_TIME")"
 	[ "$now" -ge "$target" ] || return 0
 
-	perform_install
-	result=$?
-	if [ "$result" -eq 75 ]; then
-		return 0
+	current_epoch="$(date +%s)"
+	retry_at="$(cat "$AUTO_RETRY_MARKER" 2>/dev/null || true)"
+	case "$retry_at" in
+		''|*[!0-9]*) retry_at=0 ;;
+	esac
+	if [ "$retry_at" -gt 0 ]; then
+		elapsed=$((current_epoch - retry_at))
+		if [ "$elapsed" -ge 0 ] && [ "$elapsed" -lt "$AUTO_INSTALL_RETRY_S" ]; then
+			return 0
+		fi
 	fi
 
-	printf '%s\n' "$today" > "$AUTO_MARKER"
+	perform_install
+	result=$?
+	if [ "$result" -eq 0 ]; then
+		printf '%s\n' "$today" > "$AUTO_MARKER"
+		rm -f "$AUTO_RETRY_MARKER" "$AUTO_RETRY_COUNT_MARKER"
+	elif [ "$result" -ne 75 ]; then
+		retry_count=$((retry_count + 1))
+		printf '%s %s\n' "$today" "$retry_count" > "$AUTO_RETRY_COUNT_MARKER"
+		if [ "$retry_count" -lt "$AUTO_INSTALL_MAX_ATTEMPTS" ]; then
+			printf '%s\n' "$current_epoch" > "$AUTO_RETRY_MARKER"
+		else
+			rm -f "$AUTO_RETRY_MARKER"
+			log_message "automatic update failed after $retry_count attempts; retrying tomorrow"
+		fi
+	fi
+
+	return 0
 }
 
 periodic_check_if_due() {
