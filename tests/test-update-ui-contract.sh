@@ -31,6 +31,9 @@ grep -Fq '업데이트 확인' "$UPDATES_CARD" || \
 	fail 'update card must provide an explicit check action'
 grep -Fq 'ReloadIcon class="size-4"' "$UPDATES_CARD" || \
 	fail 'update card check actions must use the shared reload icon'
+if grep -Fq 'LoaderIcon' "$UPDATES_CARD" || grep -Fq 'RefreshIcon' "$UPDATES_CARD"; then
+	fail 'update card must not mix legacy loading or refresh icons'
+fi
 grep -Fq '업데이트 설치' "$UPDATES_CARD" || \
 	fail 'update card must provide an explicit install action'
 
@@ -39,8 +42,8 @@ grep -Fq "const installing = action === 'install' || data?.phase === 'installing
 	fail 'update card must track installing state explicitly'
 grep -Fq 'function updatePhaseIcon(data: SoftwareUpdateStatus)' "$UPDATES_CARD" || \
 	fail 'update card must provide an explicit status icon for each update phase'
-grep -Fq 'LoaderIcon class="size-3.5 shrink-0 animate-spin"' "$UPDATES_CARD" || \
-	fail 'checking/installing status badge must render a visible loader icon'
+grep -Fq 'ReloadIcon class="size-3.5 shrink-0 animate-spin"' "$UPDATES_CARD" || \
+	fail 'checking/installing status badge must spin the shared reload icon'
 grep -Fq "{installing ? '설치 중...' : '업데이트 설치'}" "$UPDATES_CARD" || \
 	fail 'install button must expose an installing label'
 grep -Fq 'aria-busy="true"' "$UPDATES_CARD" || \

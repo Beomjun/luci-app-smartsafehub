@@ -19,10 +19,10 @@ done
 
 grep -Fq 'class="flex items-center gap-4"' "$STATE_PANELS" || \
 	fail 'LoadingPanel must use a compact horizontal layout'
-grep -Fq "import { LoaderIcon, ReloadIcon } from './Icons';" "$STATE_PANELS" || \
-	fail 'state panels must use the shared loader and reload icons'
-grep -Eq '<LoaderIcon class="[^"]*size-8[^"]*shrink-0[^"]*animate-spin[^"]*" */>' "$STATE_PANELS" || \
-	fail 'LoadingPanel loader icon must stay compact, non-shrinking and animated'
+grep -Fq "import { ReloadIcon } from './Icons';" "$STATE_PANELS" || \
+	fail 'state panels must use the shared reload icon'
+grep -Eq '<ReloadIcon class="[^"]*size-8[^"]*shrink-0[^"]*animate-spin[^"]*" */>' "$STATE_PANELS" || \
+	fail 'LoadingPanel reload icon must stay compact, non-shrinking and animated'
 grep -Fq '<ReloadIcon class="size-4" />' "$STATE_PANELS" || \
 	fail 'ErrorPanel retry action must use the shared reload icon'
 grep -Fq 'class="min-w-0 text-left"' "$STATE_PANELS" || \

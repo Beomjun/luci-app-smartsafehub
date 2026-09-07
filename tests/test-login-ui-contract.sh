@@ -28,6 +28,10 @@ grep -Fq 'autoComplete="current-password"' "$LOGIN" || \
 	fail 'password field must expose current-password autocomplete'
 grep -Fq 'name="password"' "$LOGIN" || \
 	fail 'password field must expose a stable form name for password managers'
+grep -Fq '<ReloadIcon class="ssh-login-probe-spinner" aria-hidden="true" />' "$LOGIN" || \
+	fail 'login session probe must spin the shared reload icon'
+grep -Fq '<ReloadIcon class="ssh-login-submit-spinner" aria-hidden="true" />' "$LOGIN" || \
+	fail 'login submit busy state must spin the shared reload icon'
 grep -Fq 'onSubmit={submit}' "$LOGIN" || \
 	fail 'login credentials must be submitted through a form for Enter-key support'
 grep -Fq 'usernameInput.current?.focus()' "$LOGIN" || \

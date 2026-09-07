@@ -78,8 +78,8 @@ grep -Fq 'class={`hidden size-10 shrink-0 items-center justify-center rounded-xl
 	fail 'desktop refresh action must be an icon-only header button'
 grep -Fq 'ReloadIcon class="size-4.5"' "$HEADER" || \
 	fail 'desktop refresh action must use the dedicated reload icon while idle'
-grep -Fq 'LoaderIcon class="size-4.5 animate-spin"' "$HEADER" || \
-	fail 'desktop refresh action must switch to the loader icon while refreshing'
+grep -Fq 'ReloadIcon class="size-4.5 animate-spin"' "$HEADER" || \
+	fail 'desktop refresh action must spin the shared reload icon while refreshing'
 if grep -Fq '<span class="hidden sm:inline">' "$HEADER"; then
 	fail 'desktop refresh action must not restore a visible text label'
 fi
@@ -89,8 +89,8 @@ grep -Fq 'disabled={loading || refreshing}' "$NAVIGATION" || \
 	fail 'mobile refresh action must prevent duplicate requests while loading or refreshing'
 grep -Fq 'ReloadIcon class="size-5"' "$NAVIGATION" || \
 	fail 'mobile refresh action must use the dedicated reload icon while idle'
-grep -Fq 'LoaderIcon class="size-5 animate-spin"' "$NAVIGATION" || \
-	fail 'mobile refresh action must switch to the loader icon while refreshing'
+grep -Fq 'ReloadIcon class="size-5 animate-spin"' "$NAVIGATION" || \
+	fail 'mobile refresh action must spin the shared reload icon while refreshing'
 theme_action_line="$(grep -n 'onClick={onToggleTheme}' "$NAVIGATION" | cut -d: -f1)"
 refresh_action_line="$(grep -n 'onClick={onRefresh}' "$NAVIGATION" | cut -d: -f1)"
 menu_action_line="$(grep -n 'aria-controls="smartsafehub-mobile-menu"' "$NAVIGATION" | head -n 1 | cut -d: -f1)"
@@ -124,7 +124,9 @@ grep -Fq 'export function PanelLeftOpenIcon' "$ICONS" || \
 grep -Fq 'export function MoonIcon' "$ICONS" || fail 'dark mode must provide a moon icon'
 grep -Fq 'export function SunIcon' "$ICONS" || fail 'dark mode must provide a sun icon'
 grep -Fq 'export function ReloadIcon' "$ICONS" || fail 'header refresh must provide a dedicated reload icon'
-grep -Fq 'export function LoaderIcon' "$ICONS" || fail 'header refresh must provide a shared loader icon'
+if grep -Fq 'export function LoaderIcon' "$ICONS" || grep -Fq 'export function RefreshIcon' "$ICONS"; then
+	fail 'refresh/loading states must not keep legacy spinner or refresh icon variants'
+fi
 
 grep -Fq '.ssh-sidebar-toggle {' "$STYLES" || \
 	fail 'sidebar toggle must use a dedicated low-emphasis style'

@@ -11,7 +11,6 @@ import {
   CheckCircleIcon,
   ClockIcon,
   DownloadIcon,
-  LoaderIcon,
   ReloadIcon,
   SettingsIcon,
   UpdateIcon,
@@ -109,7 +108,7 @@ function phaseClass(data: SoftwareUpdateStatus): string {
 
 function updatePhaseIcon(data: SoftwareUpdateStatus) {
   if (data.phase === 'checking' || data.phase === 'installing') {
-    return <LoaderIcon class="size-3.5 shrink-0 animate-spin" />;
+    return <ReloadIcon class="size-3.5 shrink-0 animate-spin" />;
   }
   if (data.phase === 'error') {
     return <AlertIcon class="size-3.5 shrink-0" />;
@@ -250,11 +249,7 @@ export function SoftwareUpdatesCard({
                   onClick={onCheck}
                   type="button"
                 >
-                  {checking ? (
-                    <LoaderIcon class="size-4 animate-spin" />
-                  ) : (
-                    <ReloadIcon class="size-4" />
-                  )}
+                  <ReloadIcon class={`size-4 ${checking ? 'animate-spin' : ''}`} />
                   {checking ? '확인 중...' : '업데이트 확인'}
                 </button>
 
@@ -266,7 +261,7 @@ export function SoftwareUpdatesCard({
                     type="button"
                   >
                     {installing ? (
-                      <LoaderIcon class="size-4 animate-spin" />
+                      <ReloadIcon class="size-4 animate-spin" />
                     ) : (
                       <DownloadIcon class="size-4" />
                     )}
@@ -304,7 +299,7 @@ export function SoftwareUpdatesCard({
             >
               <div class="flex items-start gap-3">
                 <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-sky-700 ring-1 ring-inset ring-sky-200">
-                  <LoaderIcon aria-hidden="true" class="size-5 animate-spin" />
+                  <ReloadIcon aria-hidden="true" class="size-5 animate-spin" />
                 </span>
                 <div class="min-w-0">
                   <h3 class="m-0 text-sm font-black text-sky-950">
@@ -338,7 +333,7 @@ export function SoftwareUpdatesCard({
           ) : loading && !data ? (
             <div class="mt-5 flex items-center gap-3 rounded-xl bg-slate-50 p-4 text-sm font-bold text-slate-500">
               <span class="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-teal-700 ring-1 ring-inset ring-slate-200">
-                <LoaderIcon aria-hidden="true" class="size-4 animate-spin" />
+                <ReloadIcon aria-hidden="true" class="size-4 animate-spin" />
               </span>
               <span>업데이트 상태를 확인하고 있습니다.</span>
             </div>

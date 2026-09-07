@@ -10,6 +10,7 @@ import {
   EyeOffIcon,
   KeyIcon,
   MoonIcon,
+  ReloadIcon,
   ShieldIcon,
   SunIcon,
   UserIcon,
@@ -189,7 +190,7 @@ export function LoginApp({ onAuthenticated, probing = false }: LoginAppProps) {
         <div class="ssh-login-panel-inner">
           {probing ? (
             <div class="ssh-login-probe" role="status" aria-live="polite">
-              <span class="ssh-login-probe-spinner" aria-hidden="true" />
+              <ReloadIcon class="ssh-login-probe-spinner" aria-hidden="true" />
               <strong>SmartSafeHub 연결 확인 중</strong>
               <span>로그인 세션을 확인하고 있습니다.</span>
             </div>
@@ -283,7 +284,7 @@ export function LoginApp({ onAuthenticated, probing = false }: LoginAppProps) {
                 ) : null}
 
                 <button class="ssh-login-submit" disabled={busy} type="submit">
-                  {busy ? <span class="ssh-login-submit-spinner" aria-hidden="true" /> : null}
+                  {busy ? <ReloadIcon class="ssh-login-submit-spinner" aria-hidden="true" /> : null}
                   <span>{busy ? '로그인 중…' : '로그인'}</span>
                 </button>
               </form>

@@ -1,4 +1,4 @@
-import { LoaderIcon, ReloadIcon } from './Icons';
+import { ReloadIcon } from './Icons';
 
 export function LoadingPanel() {
   return (
@@ -8,7 +8,7 @@ export function LoadingPanel() {
       class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5 sm:p-6"
     >
       <div class="flex items-center gap-4">
-        <LoaderIcon class="size-8 shrink-0 text-teal-700 animate-spin" />
+        <ReloadIcon class="size-8 shrink-0 animate-spin text-teal-700" />
         <div class="min-w-0 text-left">
           <h2 class="m-0 text-lg font-extrabold text-slate-950">
             장치 상태를 확인하고 있습니다

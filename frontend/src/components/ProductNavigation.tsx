@@ -12,7 +12,6 @@ import {
   MoonIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
-  LoaderIcon,
   ReloadIcon,
   SettingsIcon,
   ShieldIcon,
@@ -223,7 +222,7 @@ export function ProductNavigation({
               type="button"
             >
               {refreshing ? (
-                <LoaderIcon class="size-5 animate-spin" />
+                <ReloadIcon class="size-5 animate-spin" />
               ) : (
                 <ReloadIcon class="size-5" />
               )}

@@ -87,6 +87,8 @@ grep -Fq "action === 'statistics-enable' || action === 'statistics-disable'" "$P
   fail 'statistics panel must expose a dedicated busy state for toggle actions'
 grep -Fq 'animate-spin' "$PANEL" || \
   fail 'statistics switch must show a spinner while the setting is being reconciled'
+grep -Fq '<ReloadIcon aria-hidden="true" class="size-3 animate-spin text-teal-600" />' "$PANEL" || \
+  fail 'statistics switch spinner must use the shared reload icon'
 grep -Fq 'cursor-wait' "$PANEL" || \
   fail 'statistics panel must show a wait cursor while the setting is being reconciled'
 grep -Fq '활성화하는 중…' "$PANEL" || \

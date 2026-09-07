@@ -4,7 +4,7 @@ import type {
   SafeShieldStatistics,
   SafeShieldStatisticsBucket,
 } from '../types/safeshield';
-import { DatabaseIcon } from './Icons';
+import { DatabaseIcon, ReloadIcon } from './Icons';
 import { SafeShieldBlockedBarChart } from './SafeShieldBlockedBarChart';
 import { SafeShieldDeviceStatisticsList } from './SafeShieldDeviceStatisticsList';
 
@@ -209,7 +209,7 @@ export function SafeShieldStatisticsPanel({
               }`}
             >
               {statisticsActionBusy ? (
-                <span class="size-3 animate-spin rounded-full border-2 border-slate-300 border-t-teal-600" />
+                <ReloadIcon aria-hidden="true" class="size-3 animate-spin text-teal-600" />
               ) : null}
             </span>
           </button>
