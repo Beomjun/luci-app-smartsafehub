@@ -74,6 +74,9 @@ function phaseClass(data: SoftwareUpdateStatus): string {
   if (data.updateCount > 0) {
     return 'bg-amber-50 text-amber-800 ring-amber-200';
   }
+  if (!data.lastCheckAt) {
+    return 'bg-slate-100 text-slate-600 ring-slate-200';
+  }
   return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
 }
 
@@ -321,9 +324,11 @@ export function SoftwareUpdatesCard({
                 <dd class={`mt-2 mb-0 ml-0 break-all text-sm font-black ${
                   currentPackage?.updateAvailable ? 'text-amber-700' : 'text-slate-950'
                 }`}>
-                  {currentPackage?.updateAvailable && currentPackage.availableVersion
-                    ? currentPackage.availableVersion
-                    : '최신 버전'}
+                  {!data.lastCheckAt
+                    ? '미확인'
+                    : currentPackage?.updateAvailable && currentPackage.availableVersion
+                      ? currentPackage.availableVersion
+                      : '최신 버전'}
                 </dd>
               </div>
               <div class="bg-white p-4">
@@ -435,7 +440,7 @@ export function SoftwareUpdatesCard({
                 </p>
               )}
             </section>
-          ) : (
+          ) : data.lastCheckAt ? (
             <section class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 sm:p-6">
               <div class="flex gap-3">
                 <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-emerald-700">
@@ -447,6 +452,31 @@ export function SoftwareUpdatesCard({
                     마지막 확인은 {formatTimestamp(data.lastCheckAt)}에 완료되었습니다.
                   </p>
                 </div>
+              </div>
+            </section>
+          ) : (
+            <section class="rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:p-6">
+              <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex min-w-0 gap-3">
+                  <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-slate-500 ring-1 ring-inset ring-slate-200">
+                    <RefreshIcon class="size-5" />
+                  </span>
+                  <div class="min-w-0">
+                    <h3 class="m-0 text-base font-black text-slate-900">업데이트 상태를 아직 확인하지 않았습니다.</h3>
+                    <p class="mt-1 mb-0 text-sm leading-6 text-slate-600">
+                      업데이트 확인을 실행하면 현재 설치 버전과 사용 가능한 최신 버전을 확인합니다.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  class="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-extrabold text-slate-800 transition hover:border-teal-300 hover:text-teal-700 disabled:cursor-wait disabled:opacity-60"
+                  disabled={busy}
+                  onClick={onCheck}
+                  type="button"
+                >
+                  <RefreshIcon class="size-4" />
+                  지금 확인
+                </button>
               </div>
             </section>
           )}

@@ -31,6 +31,20 @@ grep -Fq '업데이트 확인' "$UPDATES_CARD" || \
 grep -Fq '업데이트 설치' "$UPDATES_CARD" || \
 	fail 'update card must provide an explicit install action'
 
+# An unchecked repository state must stay neutral and must not be presented as current.
+grep -Fq "return data.lastCheckAt ? '최신 상태' : '확인 전';" "$UPDATES_CARD" || \
+	fail 'update badge must distinguish unchecked state from current state'
+grep -Fq "if (!data.lastCheckAt)" "$UPDATES_CARD" || \
+	fail 'unchecked update badge must use a dedicated neutral style'
+grep -Fq "? '미확인'" "$UPDATES_CARD" || \
+	fail 'available version must remain unknown before the first successful check'
+grep -Fq ') : data.lastCheckAt ? (' "$UPDATES_CARD" || \
+	fail 'current-version success notice must require a completed update check'
+grep -Fq '업데이트 상태를 아직 확인하지 않았습니다.' "$UPDATES_CARD" || \
+	fail 'unchecked update state must render a neutral explanatory notice'
+grep -Fq '지금 확인' "$UPDATES_CARD" || \
+	fail 'unchecked update state must offer an explicit check action'
+
 # Scheduled update controls use the same emphasized form-control surface as Wi-Fi/rules.
 grep -Fq 'cursor-pointer rounded-xl border-2 border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-semibold' "$UPDATES_CARD" || \
 	fail 'update interval select must use the emphasized form-control surface'
