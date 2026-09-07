@@ -451,6 +451,21 @@ export function HomePage({
                   {memory ? formatBytes(memory.used) : '-'} /{' '}
                   {formatBytes(data.runtime.memory.total)}
                 </p>
+                <div
+                  aria-label={`메모리 사용률 ${memoryPercent}%`}
+                  class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={memoryPercent}
+                >
+                  <div
+                    class={`h-full rounded-full transition-[width] duration-300 ${
+                      memoryPercent >= 90 ? 'bg-amber-500' : 'bg-teal-600'
+                    }`}
+                    style={{ width: `${Math.min(100, memoryPercent)}%` }}
+                  />
+                </div>
               </div>
               <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div class="flex items-center gap-2 text-slate-500">
@@ -479,20 +494,6 @@ export function HomePage({
               </div>
             </div>
 
-            <div class="mt-5">
-              <div class="mb-2 flex items-center justify-between gap-3 text-xs font-extrabold text-slate-500">
-                <span>메모리 사용률</span>
-                <span>{memoryPercent}%</span>
-              </div>
-              <div class="h-2.5 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  class={`h-full rounded-full transition-[width] duration-300 ${
-                    memoryPercent >= 90 ? 'bg-amber-500' : 'bg-teal-600'
-                  }`}
-                  style={{ width: `${Math.min(100, memoryPercent)}%` }}
-                />
-              </div>
-            </div>
           </article>
 
           <article class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5 sm:p-6">

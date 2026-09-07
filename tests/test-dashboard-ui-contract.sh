@@ -84,6 +84,14 @@ grep -Fq 'formatLoadAverage(data.runtime.load[2])' "$HOME" || \
 grep -Fq 'value={data.network.ipv4Address || '\''할당되지 않음'\''}' "$HOME" || \
 	fail 'Dashboard device details must include the WAN address'
 
+grep -Fq 'aria-label={`메모리 사용률 ${memoryPercent}%`}' "$HOME" || \
+	fail 'Dashboard memory card must expose its utilization progress bar'
+grep -Fq 'class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200"' "$HOME" || \
+	fail 'Dashboard memory progress bar must stay inside the compact memory card'
+if grep -Fq '<span>메모리 사용률</span>' "$HOME"; then
+	fail 'Dashboard must not duplicate memory utilization in a separate block'
+fi
+
 grep -Fq "import { SafeShieldBlockedBarChart } from './SafeShieldBlockedBarChart';" "$ACTIVITY" || \
 	fail 'Dashboard must reuse the existing SafeShield Chart.js bar chart'
 grep -Fq 'const DISPLAY_HOURS = 24;' "$ACTIVITY" || \
