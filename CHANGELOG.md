@@ -4,6 +4,21 @@ SmartSafeHub LuCI 애플리케이션의 정식 배포 변경 사항을 기록합
 
 버전은 애플리케이션 버전과 OpenWrt 패키지 릴리스를 함께 표기합니다. 예를 들어 `0.2.0-r1`은 애플리케이션 버전 `0.2.0`, 패키지 릴리스 `1`을 의미합니다.
 
+## [0.2.10-r4] - 2026-09-08
+
+### 수정
+
+- 로컬 `.apk` 파일로 SmartSafeHub를 설치해 `/etc/apk/world`에 `luci-app-smartsafehub><Q...` identity hash constraint가 남은 경우, 자동/수동 업데이트가 저장소 버전으로 전환되지 못하고 `UPDATES_INSTALL_VERSION_UNCHANGED`가 발생하던 문제를 수정했습니다.
+- SmartSafeHub 자체에 identity pin이 있을 때만 `apk add --upgrade --latest luci-app-smartsafehub`로 해당 패키지의 world constraint를 저장소 기반 constraint로 정상화하고, 일반 상태에서는 기존 `apk upgrade luci-app-smartsafehub` 경로를 유지하도록 했습니다.
+- 전체 world의 version constraint를 초기화해 OpenWrt의 다른 패키지까지 갱신할 수 있는 `apk upgrade --available`은 updater에서 사용하지 않도록 했습니다.
+- identity pin 정상화 후에도 해당 pin이 남아 있으면 설치 성공으로 처리하지 않고 기존 `UPDATES_INSTALL_FAILED` 경로로 오류를 반환하도록 보강했습니다.
+
+### 테스트
+
+- 일반 repository 설치 상태에서는 기존 target-only `apk upgrade` 경로가 유지되는지 검증합니다.
+- 로컬 APK identity pin이 있는 경우 SmartSafeHub 하나에 대해서만 `apk add --upgrade --latest`를 사용해 pin을 제거하고 목표 버전으로 올라가는지 검증합니다.
+- updater가 `apk upgrade --available`을 사용하지 않는 contract를 추가해 다른 OpenWrt 패키지의 광범위한 업그레이드가 다시 도입되지 않도록 방지합니다.
+
 ## [0.2.10-r3] - 2026-09-08
 
 ### 수정

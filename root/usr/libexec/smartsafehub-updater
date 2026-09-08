@@ -8,6 +8,7 @@ LOCK_DIR="${SMARTSAFEHUB_UPDATER_LOCK_DIR:-/tmp/smartsafehub-updater.lock}"
 AUTO_MARKER="${SMARTSAFEHUB_UPDATER_AUTO_MARKER:-/tmp/smartsafehub-updater-auto-date}"
 AUTO_RETRY_MARKER="${SMARTSAFEHUB_UPDATER_AUTO_RETRY_MARKER:-/tmp/smartsafehub-updater-auto-retry-at}"
 AUTO_RETRY_COUNT_MARKER="${SMARTSAFEHUB_UPDATER_AUTO_RETRY_COUNT_MARKER:-/tmp/smartsafehub-updater-auto-retry-count}"
+APK_WORLD_FILE="${SMARTSAFEHUB_UPDATER_APK_WORLD_FILE:-/etc/apk/world}"
 REPOSITORY_DIR="${SMARTSAFEHUB_UPDATER_REPOSITORY_DIR:-/etc/apk/repositories.d}"
 REPOSITORY_FILE="${SMARTSAFEHUB_UPDATER_REPOSITORY_FILE:-$REPOSITORY_DIR/smartsafehub.list}"
 APK_BIN="${SMARTSAFEHUB_UPDATER_APK_BIN:-apk}"
@@ -463,6 +464,42 @@ available_upgrade_version() {
 	esac
 }
 
+update_package_has_identity_pin() {
+	local line
+	[ -f "$APK_WORLD_FILE" ] || return 1
+
+	while IFS= read -r line || [ -n "$line" ]; do
+		case "$line" in
+			"$UPDATE_PACKAGE"'><Q'*) return 0 ;;
+		esac
+	done < "$APK_WORLD_FILE"
+
+	return 1
+}
+
+upgrade_update_package() {
+	local log_file="$1"
+
+	if update_package_has_identity_pin; then
+		log_message "normalizing local APK identity pin for $UPDATE_PACKAGE"
+		if ! "$APK_BIN" add --upgrade --latest "$UPDATE_PACKAGE" > "$log_file" 2>&1; then
+			return 1
+		fi
+
+		if update_package_has_identity_pin; then
+			printf '%s\n' \
+				"SmartSafeHub 패키지의 로컬 APK identity pin을 해제하지 못했습니다." >> "$log_file"
+			return 1
+		fi
+		return 0
+	fi
+
+	if ! "$APK_BIN" upgrade "$UPDATE_PACKAGE" > "$log_file" 2>&1; then
+		return 1
+	fi
+	return 0
+}
+
 collect_packages() {
 	local output_file="$1" installed available update_available
 	: > "$output_file"
@@ -573,7 +610,7 @@ perform_install_locked() {
 		return 0
 	fi
 
-	if ! "$APK_BIN" upgrade "$UPDATE_PACKAGE" > "$log_file" 2>&1; then
+	if ! upgrade_update_package "$log_file"; then
 		message="$(apk_error_message "$log_file")"
 		write_state error "$last_check_at" "$(state_value last_install_at)" \
 			'UPDATES_INSTALL_FAILED' "$message" "$packages_file"

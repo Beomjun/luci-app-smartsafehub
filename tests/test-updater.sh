@@ -16,13 +16,13 @@ fail() {
 assert_contains() {
 	file="$1"
 	needle="$2"
-	grep -F "$needle" "$file" >/dev/null 2>&1 || fail "$file does not contain: $needle"
+	grep -F -- "$needle" "$file" >/dev/null 2>&1 || fail "$file does not contain: $needle"
 }
 
 assert_not_contains() {
 	file="$1"
 	needle="$2"
-	if grep -F "$needle" "$file" >/dev/null 2>&1; then
+	if grep -F -- "$needle" "$file" >/dev/null 2>&1; then
 		fail "$file unexpectedly contains: $needle"
 	fi
 }
@@ -35,6 +35,7 @@ PKG_RELEASE="$(sed -n 's/^PKG_RELEASE:=//p' "$MAKEFILE" | head -n1)"
 RELEASE_VERSION="${PKG_VERSION}-r${PKG_RELEASE}"
 
 mkdir -p "$TMP/bin" "$TMP/repos" "$TMP/pkg" "$TMP/releases"
+printf '%s\n' 'luci-app-smartsafehub' > "$TMP/world"
 printf '%s\n' 'https://repo.smartsafehub.com/stable/packages/x86_64/smartsafehub/packages.adb' > "$TMP/repos/smartsafehub.list"
 
 cat > "$TMP/bin/uci" <<'MOCKUCI'
@@ -148,6 +149,36 @@ case "$command" in
 		fi
 		exit 2
 		;;
+	add)
+		printf 'add' > "${MOCK_APK_LOG:?}"
+		package=''
+		for argument in "$@"; do
+			printf ' %s' "$argument" >> "$MOCK_APK_LOG"
+			case "$argument" in
+				--*) ;;
+				*) package="$argument" ;;
+			esac
+		done
+		printf '\n' >> "$MOCK_APK_LOG"
+		if [ "${MOCK_APK_ADD_FAIL:-0}" = '1' ]; then
+			echo 'ERROR: unable to normalize local APK package constraint' >&2
+			exit 1
+		fi
+		if [ -n "$package" ] && [ "${MOCK_APK_ADD_RETAIN_PIN:-0}" != '1' ] && [ -f "${MOCK_APK_WORLD_FILE:?}" ]; then
+			awk -v package="$package" '
+				index($0, package "><Q") == 1 { print package; next }
+				{ print }
+			' "$MOCK_APK_WORLD_FILE" > "$MOCK_APK_WORLD_FILE.tmp"
+			mv "$MOCK_APK_WORLD_FILE.tmp" "$MOCK_APK_WORLD_FILE"
+		fi
+		if [ "${MOCK_APK_ADD_NOOP:-0}" != '1' ] && [ -n "$package" ] && [ -f "$root/$package.available" ]; then
+			cp "$root/$package.available" "$root/$package.installed"
+		fi
+		if [ "${MOCK_APK_ADD_NOOP:-0}" != '1' ] && [ "$package" = 'luci-app-smartsafehub' ] && [ -f "$root/safeshield.available" ]; then
+			cp "$root/safeshield.available" "$root/safeshield.installed"
+		fi
+		exit 0
+		;;
 	upgrade)
 		printf 'upgrade' > "${MOCK_APK_LOG:?}"
 		for package in "$@"; do
@@ -171,6 +202,7 @@ chmod +x "$TMP/bin/apk"
 
 export MOCK_APK_ROOT="$TMP/pkg"
 export MOCK_APK_LOG="$TMP/apk.log"
+export MOCK_APK_WORLD_FILE="$TMP/world"
 export MOCK_FETCH_LOG="$TMP/fetch.log"
 export MOCK_RELEASE_ROOT="$TMP/releases"
 export SMARTSAFEHUB_UPDATER_STATE_FILE="$TMP/updates.state"
@@ -179,6 +211,7 @@ export SMARTSAFEHUB_UPDATER_LOCK_DIR="$TMP/updater.lock"
 export SMARTSAFEHUB_UPDATER_AUTO_MARKER="$TMP/auto-date"
 export SMARTSAFEHUB_UPDATER_AUTO_RETRY_MARKER="$TMP/auto-retry-at"
 export SMARTSAFEHUB_UPDATER_AUTO_RETRY_COUNT_MARKER="$TMP/auto-retry-count"
+export SMARTSAFEHUB_UPDATER_APK_WORLD_FILE="$TMP/world"
 export SMARTSAFEHUB_UPDATER_REPOSITORY_DIR="$TMP/repos"
 export SMARTSAFEHUB_UPDATER_APK_BIN="$TMP/bin/apk"
 export SMARTSAFEHUB_UPDATER_UCLIENT_FETCH_BIN="$TMP/bin/uclient-fetch"
@@ -286,6 +319,45 @@ assert_contains "$TMP/updates.state" "package${TAB}luci-app-smartsafehub${TAB}0.
 last_install_after_noop="$(awk -F '\t' '$1 == "last_install_at" { print $2 }' "$TMP/updates.state")"
 [ "$last_install_after_noop" = "$last_install_before_noop" ] || fail 'last_install_at must not change after an apk no-op'
 
+# A local APK file install pins the exact package identity in /etc/apk/world. The updater must
+# normalize only the SmartSafeHub constraint without using apk upgrade --available, which would
+# reset versioned world constraints globally and can update unrelated OpenWrt packages.
+printf '%s\n' '0.2.1-r1' > "$TMP/pkg/luci-app-smartsafehub.installed"
+printf '%s\n' '0.0.0' > "$TMP/pkg/safeshield.installed"
+cat > "$TMP/world" <<'EOF2'
+busybox=1.37.0-r6
+luci-app-smartsafehub><Q1mockLocalIdentityHash=
+dropbear><Q1unrelatedLocalIdentityHash=
+EOF2
+"$UPDATER" check
+"$UPDATER" install
+assert_contains "$TMP/apk.log" 'add --upgrade --latest luci-app-smartsafehub'
+assert_not_contains "$TMP/apk.log" '--available'
+assert_contains "$TMP/world" 'busybox=1.37.0-r6'
+assert_contains "$TMP/world" 'luci-app-smartsafehub'
+assert_not_contains "$TMP/world" 'luci-app-smartsafehub><Q'
+assert_contains "$TMP/world" 'dropbear><Q1unrelatedLocalIdentityHash='
+[ "$(cat "$TMP/pkg/luci-app-smartsafehub.installed")" = "$RELEASE_VERSION" ] || fail 'identity-pinned SmartSafeHub package did not upgrade to the repository version'
+assert_contains "$TMP/updates.state" "package${TAB}luci-app-smartsafehub${TAB}${RELEASE_VERSION}${TAB}${TAB}0"
+
+# Even if apk reports success, a pin that remains must keep the operation in an error state.
+printf '%s\n' '0.2.1-r1' > "$TMP/pkg/luci-app-smartsafehub.installed"
+printf '%s\n' 'luci-app-smartsafehub><Q1stuckLocalIdentityHash=' > "$TMP/world"
+"$UPDATER" check
+if MOCK_APK_ADD_NOOP=1 MOCK_APK_ADD_RETAIN_PIN=1 "$UPDATER" install; then
+	fail 'an identity pin that remains after apk add must not be reported as a successful install'
+fi
+assert_contains "$TMP/updates.state" "phase${TAB}error"
+assert_contains "$TMP/updates.state" "error_code${TAB}UPDATES_INSTALL_FAILED"
+assert_contains "$TMP/world" 'luci-app-smartsafehub><Q1stuckLocalIdentityHash='
+
+printf '%s\n' 'luci-app-smartsafehub' > "$TMP/world"
+assert_contains "$UPDATER" 'APK_WORLD_FILE="${SMARTSAFEHUB_UPDATER_APK_WORLD_FILE:-/etc/apk/world}"'
+assert_contains "$UPDATER" 'if update_package_has_identity_pin; then'
+assert_contains "$UPDATER" '"$APK_BIN" add --upgrade --latest "$UPDATE_PACKAGE"'
+assert_contains "$UPDATER" '"$APK_BIN" upgrade "$UPDATE_PACKAGE"'
+assert_not_contains "$UPDATER" 'upgrade --available'
+
 # Automatic installs must mark the date only after perform_install succeeds, throttle retries,
 # and stop after three real failed attempts on the same day. Lock contention does not consume an attempt.
 assert_contains "$UPDATER" 'AUTO_INSTALL_RETRY_S=900'
@@ -386,4 +458,4 @@ auto_install_if_due
 
 set -e
 
-echo "PASS: updater uses apk upgrade, verifies the installed version, limits failed automatic installs to three attempts per day, and enforces safeshield >= $SAFESHIELD_MIN_VERSION through package metadata"
+echo "PASS: updater handles repository upgrades and local APK identity pins, verifies installed versions, limits automatic retries, and preserves targeted package scope"
