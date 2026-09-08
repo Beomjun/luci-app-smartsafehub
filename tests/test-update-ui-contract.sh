@@ -117,16 +117,19 @@ fi
 
 
 # Update status polling should be conservative while idle, pause in hidden tabs,
-# refresh when the UI becomes active again, and only use a short interval while installing.
+# refresh when the UI becomes active again, and poll active checks/installations until they finish.
 grep -Fq 'const BACKGROUND_POLL_INTERVAL_MS = 5 * 60_000;' "$UPDATES_HOOK" || \
 	fail 'software update background polling must use a five-minute interval'
+grep -Fq 'const CHECK_POLL_INTERVAL_MS = 1_000;' "$UPDATES_HOOK" || \
+	fail 'software update checking polling must use a one-second interval'
 grep -Fq 'const INSTALL_POLL_INTERVAL_MS = 3_000;' "$UPDATES_HOOK" || \
 	fail 'software update installation polling must use a three-second interval'
+grep -Fq "if (data?.phase === 'checking')" "$UPDATES_HOOK" || \
+	fail 'software update checking must use active polling until the phase changes'
+grep -Fq 'return CHECK_POLL_INTERVAL_MS;' "$UPDATES_HOOK" || \
+	fail 'software update checking must return the short checking poll interval'
 grep -Fq "data?.phase === 'installing'" "$UPDATES_HOOK" || \
-	fail 'short software update polling must only be used while installing'
-if grep -Fq "data?.phase === 'checking' || data?.phase === 'installing'" "$UPDATES_HOOK"; then
-	fail 'software update checking must not use the short installation poll interval'
-fi
+	fail 'software update installation must keep using active polling until completion'
 grep -Fq 'refreshOnFocus: true' "$UPDATES_HOOK" || \
 	fail 'software updates must refresh when the browser window regains focus'
 grep -Fq "document.addEventListener('visibilitychange', handleVisibilityChange);" "$ASYNC_RESOURCE" || \

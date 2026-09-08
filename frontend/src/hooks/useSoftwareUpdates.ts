@@ -16,6 +16,7 @@ import { useAsyncResource } from './useAsyncResource';
 export type SoftwareUpdateAction = 'check' | 'install' | 'settings' | null;
 
 const BACKGROUND_POLL_INTERVAL_MS = 5 * 60_000;
+const CHECK_POLL_INTERVAL_MS = 1_000;
 const INSTALL_POLL_INTERVAL_MS = 3_000;
 
 export function useSoftwareUpdates(active = true) {
@@ -23,10 +24,15 @@ export function useSoftwareUpdates(active = true) {
     active,
     fallbackError: '소프트웨어 업데이트 상태를 불러오지 못했습니다.',
     loader: fetchSoftwareUpdates,
-    pollInterval: (data: SoftwareUpdateStatus | null) =>
-      data?.phase === 'installing'
+    pollInterval: (data: SoftwareUpdateStatus | null) => {
+      if (data?.phase === 'checking') {
+        return CHECK_POLL_INTERVAL_MS;
+      }
+
+      return data?.phase === 'installing'
         ? INSTALL_POLL_INTERVAL_MS
-        : BACKGROUND_POLL_INTERVAL_MS,
+        : BACKGROUND_POLL_INTERVAL_MS;
+    },
     refreshOnFocus: true,
   });
   const [action, setAction] = useState<SoftwareUpdateAction>(null);
