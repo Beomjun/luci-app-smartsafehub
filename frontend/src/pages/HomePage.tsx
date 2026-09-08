@@ -521,9 +521,6 @@ export function HomePage({
                 label="WAN IP"
                 value={data.network.ipv4Address || '할당되지 않음'}
               />
-              {data.device.boardName ? (
-                <DetailRow label="보드" value={data.device.boardName} />
-              ) : null}
             </dl>
           </article>
         </div>
