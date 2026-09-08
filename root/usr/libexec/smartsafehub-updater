@@ -638,7 +638,7 @@ perform_install_locked() {
 	log_message "SmartSafeHub package update completed: $UPDATE_PACKAGE"
 
 	if [ -n "$RPCD_INIT" ] && [ -x "$RPCD_INIT" ]; then
-		( sleep 2; "$RPCD_INIT" restart >/dev/null 2>&1 ) &
+		( sleep 2; "$RPCD_INIT" reload >/dev/null 2>&1 ) &
 	fi
 	return 0
 }

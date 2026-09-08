@@ -4,6 +4,19 @@ SmartSafeHub LuCI 애플리케이션의 정식 배포 변경 사항을 기록합
 
 버전은 애플리케이션 버전과 OpenWrt 패키지 릴리스를 함께 표기합니다. 예를 들어 `0.2.0-r1`은 애플리케이션 버전 `0.2.0`, 패키지 릴리스 `1`을 의미합니다.
 
+## [0.2.11-r2] - 2026-09-08
+
+### 수정
+
+- SmartSafeHub 자체 업데이트 완료 후 `rpcd restart`로 기존 LuCI 세션이 사라져 업데이트 화면의 상태 polling이 `Access denied`를 반복하던 문제를 수정했습니다. 업데이트 후에는 `rpcd reload`를 사용해 RPC plugin/ACL을 다시 읽으면서 기존 세션을 유지합니다.
+- 설치 중 기존 세션이 예외적으로 무효화되어 LuCI가 `Access denied`를 반환하면 무한 polling을 계속하지 않고 페이지를 다시 로드해 SmartSafeHub의 세션 확인/로그인 흐름으로 복구하도록 보강했습니다.
+- 업데이트 상태의 실제 설치 버전과 현재 브라우저가 로드한 asset version이 달라지면 페이지를 한 번 자동으로 다시 로드해 새 `app.js`와 `app.css`를 즉시 사용하도록 했습니다. 자동 설치가 polling 사이에 완료된 경우에도 다음 상태 조회에서 버전 불일치를 감지합니다.
+
+### 테스트
+
+- self-update 완료 경로가 `rpcd restart`를 사용하지 않고 `rpcd reload`만 예약하는지 검증합니다.
+- 업데이트 설치 중 `Access denied`가 발생하면 페이지 reload 복구 경로가 존재하고, 설치 완료 후 package/asset version 불일치에서도 새 frontend asset을 위한 reload가 수행되는지 UI contract로 검증합니다.
+
 ## [0.2.11-r1] - 2026-09-08
 
 ### 수정

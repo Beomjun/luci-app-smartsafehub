@@ -358,6 +358,9 @@ assert_contains "$UPDATER" '"$APK_BIN" add --upgrade --latest "$UPDATE_PACKAGE"'
 assert_contains "$UPDATER" '"$APK_BIN" upgrade "$UPDATE_PACKAGE"'
 assert_not_contains "$UPDATER" 'upgrade --available'
 
+assert_contains "$UPDATER" '( sleep 2; "$RPCD_INIT" reload >/dev/null 2>&1 ) &'
+assert_not_contains "$UPDATER" '"$RPCD_INIT" restart'
+
 # Automatic installs must mark the date only after perform_install succeeds, throttle retries,
 # and stop after three real failed attempts on the same day. Lock contention does not consume an attempt.
 assert_contains "$UPDATER" 'AUTO_INSTALL_RETRY_S=900'

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'preact/hooks';
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 
 import {
   fetchSoftwareUpdates,
@@ -18,6 +18,7 @@ export type SoftwareUpdateAction = 'check' | 'install' | 'settings' | null;
 const BACKGROUND_POLL_INTERVAL_MS = 5 * 60_000;
 const CHECK_POLL_INTERVAL_MS = 1_000;
 const INSTALL_POLL_INTERVAL_MS = 3_000;
+const UPDATE_PACKAGE = 'luci-app-smartsafehub';
 
 export function useSoftwareUpdates(active = true) {
   const resource = useAsyncResource({
@@ -38,6 +39,41 @@ export function useSoftwareUpdates(active = true) {
   const [action, setAction] = useState<SoftwareUpdateAction>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const reloadRequested = useRef(false);
+
+  useEffect(() => {
+    if (reloadRequested.current) {
+      return;
+    }
+
+    const phase = resource.data?.phase;
+    if (
+      phase === 'installing' &&
+      resource.error?.trim().toLowerCase() === 'access denied'
+    ) {
+      reloadRequested.current = true;
+      window.location.reload();
+      return;
+    }
+
+    if (phase !== 'idle') {
+      return;
+    }
+
+    const installedVersion = resource.data?.packages.find(
+      (item) => item.name === UPDATE_PACKAGE,
+    )?.installedVersion;
+    const loadedAssetVersion = window.__SMARTHUB_BOOTSTRAP__?.assetVersion;
+
+    if (
+      installedVersion &&
+      loadedAssetVersion &&
+      installedVersion !== loadedAssetVersion
+    ) {
+      reloadRequested.current = true;
+      window.location.reload();
+    }
+  }, [resource.data, resource.error]);
 
   const markPhase = useCallback(
     (phase: SoftwareUpdateStatus['phase']) => {

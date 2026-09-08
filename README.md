@@ -263,12 +263,11 @@ apk add --allow-untrusted /tmp/luci-app-smartsafehub-*.apk
 
 정확한 현재 버전은 `Makefile`의 `PKG_VERSION`과 `PKG_RELEASE`, 또는 설치된 장치의 `apk info luci-app-smartsafehub`로 확인합니다.
 
-설치 후 LuCI와 rpcd 캐시를 갱신합니다.
+설치 후 LuCI 메뉴 캐시를 지우고 rpcd plugin/ACL을 다시 읽습니다. 기존 LuCI 세션을 유지하기 위해 `restart` 대신 `reload`를 사용합니다.
 
 ```bash
 rm -f /tmp/luci-indexcache
-/etc/init.d/rpcd restart
-/etc/init.d/uhttpd restart
+/etc/init.d/rpcd reload
 ```
 
 ## 설치 후 확인
