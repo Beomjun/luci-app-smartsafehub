@@ -54,6 +54,10 @@ grep -Fq 'state.releaseNotes = release_notes.notes;' "$UPDATES_MODULE" || \
 	fail 'updates_status must expose validated release note metadata'
 grep -Fq 'state.releaseNotesComplete = release_notes.complete;' "$UPDATES_MODULE" || \
 	fail 'updates_status must expose release-note completeness'
+grep -Fq "const UPDATE_REPOSITORY_FILE = '/etc/apk/repositories.d/smartsafehub.list';" "$UPDATES_MODULE" || \
+	fail 'updates_status must read the SmartSafeHub repository file for channel metadata'
+grep -Fq 'channel: read_update_channel(),' "$UPDATES_MODULE" || \
+	fail 'updates_status must expose the current SmartSafeHub update channel'
 grep -Fq 'refresh_release_notes "$packages_file"' "$UPDATER" || \
 	fail 'updater must refresh display-only release notes after package checks'
 grep -Fq 'collect_packages_with_live_installed "$packages_file"' "$UPDATER" || \

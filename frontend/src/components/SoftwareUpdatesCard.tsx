@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 
 import type { SoftwareUpdateAction } from '../hooks/useSoftwareUpdates';
 import type {
+  SoftwareUpdateChannel,
   SoftwareUpdateError,
   SoftwareUpdateSettingsInput,
   SoftwareUpdateStatus,
@@ -50,6 +51,25 @@ function formatTimestamp(value: number | null): string {
   });
 }
 
+function updateChannelLabel(channel: SoftwareUpdateChannel): string {
+  if (channel === 'stable') {
+    return 'Stable';
+  }
+  if (channel === 'beta') {
+    return 'Beta';
+  }
+  return '미확인';
+}
+
+function updateChannelClass(channel: SoftwareUpdateChannel): string {
+  if (channel === 'stable') {
+    return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+  }
+  if (channel === 'beta') {
+    return 'bg-amber-50 text-amber-700 ring-amber-200';
+  }
+  return 'bg-slate-100 text-slate-600 ring-slate-200';
+}
 
 function updateErrorSummary(error: SoftwareUpdateError): { title: string; description: string } {
   if (error.code === 'UPDATES_INDEX_REFRESH_FAILED') {
@@ -605,6 +625,23 @@ export function SoftwareUpdatesCard({
             </div>
 
             <div class="mt-5 grid gap-4 lg:grid-cols-2">
+              <div class="rounded-xl border border-slate-200 p-4 sm:p-5 lg:col-span-2">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div class="min-w-0">
+                    <strong class="block text-sm font-black text-slate-950">업데이트 채널</strong>
+                    <span class="mt-1 block text-xs leading-5 text-slate-500">
+                      현재 SmartSafeHub 업데이트를 확인하는 배포 채널입니다.
+                    </span>
+                  </div>
+                  <span
+                    class={`inline-flex min-h-9 shrink-0 items-center justify-center rounded-full px-3 py-1.5 text-xs font-extrabold ring-1 ring-inset ${updateChannelClass(data.settings.channel)}`}
+                    title="현재 업데이트 확인 채널"
+                  >
+                    {updateChannelLabel(data.settings.channel)}
+                  </span>
+                </div>
+              </div>
+
               <div class="rounded-xl border border-slate-200 p-4 sm:p-5">
                 <div class="flex items-start justify-between gap-4">
                   <div>

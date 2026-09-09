@@ -1,4 +1,5 @@
 export type SoftwareUpdatePhase = 'idle' | 'checking' | 'installing' | 'error';
+export type SoftwareUpdateChannel = 'stable' | 'beta' | 'unknown';
 
 export interface SoftwareUpdatePackage {
   name: string;
@@ -28,6 +29,7 @@ export interface SoftwareUpdateError {
 }
 
 export interface SoftwareUpdateSettings {
+  channel: SoftwareUpdateChannel;
   checkEnabled: boolean;
   checkIntervalSeconds: number;
   autoInstall: boolean;

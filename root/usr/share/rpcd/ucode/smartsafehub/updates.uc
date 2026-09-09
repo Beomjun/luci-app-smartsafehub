@@ -12,6 +12,7 @@ import {
 
 const UPDATE_STATE_FILE = '/tmp/smartsafehub-updates.state';
 const RELEASE_NOTES_FILE = '/tmp/smartsafehub-release-notes.json';
+const UPDATE_REPOSITORY_FILE = '/etc/apk/repositories.d/smartsafehub.list';
 const MAX_RELEASE_NOTES_BYTES = 1048576;
 const MAX_RELEASE_NOTES = 32;
 const MAX_RELEASE_NOTE_SECTIONS = 12;
@@ -38,6 +39,29 @@ function integer_value(value, fallback) {
 	return parsed_type == 'int' || parsed_type == 'double' ? parsed : fallback;
 }
 
+function read_update_channel() {
+	const raw = fs.readfile(UPDATE_REPOSITORY_FILE);
+	if (type(raw) != 'string' || !length(raw)) {
+		return 'unknown';
+	}
+
+	for (let line in split(raw, /\r?\n/)) {
+		const repository = trim(line);
+		if (!length(repository) || substr(repository, 0, 1) == '#') {
+			continue;
+		}
+
+		if (match(repository, /\/stable\/packages\//) != null) {
+			return 'stable';
+		}
+		if (match(repository, /\/beta\/packages\//) != null) {
+			return 'beta';
+		}
+	}
+
+	return 'unknown';
+}
+
 function read_update_settings() {
 	const ctx = new_uci_cursor();
 	const section = ctx?.get_all('smartsafehub', 'updates') ?? {};
@@ -56,6 +80,7 @@ function read_update_settings() {
 		autoInstallTime: match(auto_install_time, /^([01][0-9]|2[0-3]):[0-5][0-9]$/) != null
 			? auto_install_time
 			: '03:00',
+		channel: read_update_channel(),
 		repositoryHost: string_value(section?.repository_host, 'repo.smartsafehub.com'),
 		updatePackage: UPDATE_PACKAGE,
 	};

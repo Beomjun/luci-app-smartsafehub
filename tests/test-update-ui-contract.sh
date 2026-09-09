@@ -107,6 +107,16 @@ if grep -Fq 'type="checkbox"' "$UPDATES_CARD"; then
 	fail 'legacy checkbox controls must not remain in the update settings panel'
 fi
 
+# The current update channel should be visible without exposing repository implementation details.
+grep -Fq '업데이트 채널' "$UPDATES_CARD" || \
+	fail 'update settings must show the current update channel'
+grep -Fq 'updateChannelLabel(data.settings.channel)' "$UPDATES_CARD" || \
+	fail 'update channel display must use the channel returned by updates_status'
+grep -Fq "return 'Stable';" "$UPDATES_CARD" || \
+	fail 'stable update channel must have a product label'
+grep -Fq "return 'Beta';" "$UPDATES_CARD" || \
+	fail 'beta update channel must have a product label'
+
 # Internal package/repository implementation details should not be rendered as product UI text.
 if grep -Fq '저장소:' "$UPDATES_CARD"; then
 	fail 'repository host must not be exposed in the product update UI'
