@@ -157,7 +157,7 @@ function SettingSwitch({
     <button
       aria-checked={checked}
       aria-label={label}
-      class={`relative inline-flex h-7 w-12 shrink-0 rounded-full border transition focus:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-50 ${
+      class={`ssh-switch-control relative inline-flex shrink-0 rounded-full border transition focus:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-50 ${
         checked ? 'border-teal-600 bg-teal-600' : 'border-slate-300 bg-slate-200'
       }`}
       disabled={disabled}
@@ -167,7 +167,7 @@ function SettingSwitch({
     >
       <span
         aria-hidden="true"
-        class={`absolute top-1 size-5 rounded-full bg-white shadow-sm transition-[left] ${
+        class={`ssh-switch-thumb absolute top-1 shadow-sm transition-[left] ${
           checked ? 'left-6' : 'left-1'
         }`}
       />

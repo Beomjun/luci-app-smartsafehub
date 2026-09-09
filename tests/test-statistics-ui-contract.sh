@@ -101,6 +101,12 @@ grep -Fq 'animate-spin' "$PANEL" || \
   fail 'statistics switch must show a spinner while the setting is being reconciled'
 grep -Fq '<ReloadIcon aria-hidden="true" class="size-3 animate-spin text-teal-600" />' "$PANEL" || \
   fail 'statistics switch spinner must use the shared reload icon'
+grep -Fq '.ssh-switch-control {' "$ROOT_DIR/frontend/src/styles/app.css" || \
+  fail 'shared switch control geometry must be defined in app styles'
+grep -Fq '.ssh-switch-thumb {' "$ROOT_DIR/frontend/src/styles/app.css" || \
+  fail 'shared switch thumb style must be defined in app styles'
+grep -Fq 'background-color: #fff;' "$ROOT_DIR/frontend/src/styles/app.css" || \
+  fail 'shared switch thumb must stay white under the dark-theme utility remap'
 grep -Fq 'cursor-wait' "$PANEL" || \
   fail 'statistics panel must show a wait cursor while the setting is being reconciled'
 grep -Fq '활성화하는 중…' "$PANEL" || \

@@ -58,6 +58,10 @@ grep -Fq '수집 누적 DNS 요청' "$PANEL" || \
 	fail 'SafeShield activity must preserve collector lifetime totals as secondary metadata'
 grep -Fq "targetEnabled ? 'left-6' : 'left-1'" "$PANEL" || \
 	fail 'SafeShield statistics switch thumb must use explicit left positioning for reliable alignment'
+grep -Fq 'ssh-switch-control' "$PANEL" || \
+	fail 'SafeShield statistics switch must use fixed shared geometry on narrow screens'
+grep -Fq 'ssh-switch-thumb' "$PANEL" || \
+	fail 'SafeShield statistics switch thumb must use the theme-safe shared circle style'
 if grep -Fq "targetEnabled ? 'translate-x-6' : 'translate-x-1'" "$PANEL"; then
 	fail 'SafeShield statistics switch thumb must not rely on translate positioning'
 fi

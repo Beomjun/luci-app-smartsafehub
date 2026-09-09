@@ -192,7 +192,7 @@ export function SafeShieldStatisticsPanel({
           <button
             aria-checked={targetEnabled}
             aria-label={targetEnabled ? '차단 통계 수집 끄기' : '차단 통계 수집 켜기'}
-            class={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border-0 p-0 transition focus:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 ${
+            class={`ssh-switch-control relative inline-flex shrink-0 items-center rounded-full border-0 p-0 transition focus:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 ${
               statisticsActionBusy
                 ? 'cursor-wait opacity-80'
                 : 'disabled:cursor-not-allowed disabled:opacity-50'
@@ -204,7 +204,7 @@ export function SafeShieldStatisticsPanel({
           >
             <span
               aria-hidden="true"
-              class={`absolute top-1 grid size-5 place-items-center rounded-full bg-white shadow-sm transition-all ${
+              class={`ssh-switch-thumb absolute top-1 grid place-items-center shadow-sm transition-all ${
                 targetEnabled ? 'left-6' : 'left-1'
               }`}
             >

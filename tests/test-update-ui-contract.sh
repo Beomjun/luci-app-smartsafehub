@@ -103,6 +103,10 @@ grep -Fq 'role="switch"' "$UPDATES_CARD" || \
 	fail 'automatic update settings must use switch controls'
 grep -Fq "checked ? 'left-6' : 'left-1'" "$UPDATES_CARD" || \
 	fail 'update switch thumb must use explicit left positioning'
+grep -Fq 'ssh-switch-control' "$UPDATES_CARD" || \
+	fail 'update switches must use fixed shared geometry on narrow screens'
+grep -Fq 'ssh-switch-thumb' "$UPDATES_CARD" || \
+	fail 'update switch thumbs must use the theme-safe shared circle style'
 if grep -Fq 'type="checkbox"' "$UPDATES_CARD"; then
 	fail 'legacy checkbox controls must not remain in the update settings panel'
 fi
