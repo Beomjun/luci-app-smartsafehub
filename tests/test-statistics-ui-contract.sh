@@ -52,6 +52,18 @@ grep -Fq 'IP 임시 식별' "$DEVICE_LIST" || \
   fail 'device statistics list must show temporary IP identification state'
 grep -Fq 'device.blocked' "$DEVICE_LIST" || \
   fail 'device statistics list must render blocked request counts'
+grep -Fq 'const DEVICES_PER_PAGE = 10;' "$DEVICE_LIST" || \
+  fail 'device statistics list must paginate ten devices at a time'
+grep -Fq 'orderedDevices.slice(pageStart, pageEnd)' "$DEVICE_LIST" || \
+  fail 'device statistics list must render only the current page slice'
+grep -Fq 'aria-label="기기별 통계 페이지"' "$DEVICE_LIST" || \
+  fail 'device statistics pagination must expose an accessible navigation label'
+grep -Fq 'setPage((current) => Math.min(current, pageCount));' "$DEVICE_LIST" || \
+  fail 'device statistics pagination must clamp the current page after refreshes'
+grep -Fq '              이전' "$DEVICE_LIST" || \
+  fail 'device statistics pagination must provide a previous-page control'
+grep -Fq '              다음' "$DEVICE_LIST" || \
+  fail 'device statistics pagination must provide a next-page control'
 jq -e '.dependencies["chart.js"] == "4.5.1"' "$PACKAGE_JSON" >/dev/null || \
   fail 'frontend must pin Chart.js 4.5.1'
 grep -Fq "from 'chart.js';" "$CHART" || \

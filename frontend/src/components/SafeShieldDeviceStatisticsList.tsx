@@ -1,6 +1,10 @@
+import { useEffect, useState } from 'preact/hooks';
+
 import { formatNumber } from '../app/format';
 import type { SafeShieldDeviceStatistics } from '../types/safeshield';
 import { DevicesIcon } from './Icons';
+
+const DEVICES_PER_PAGE = 10;
 
 interface SafeShieldDeviceStatisticsListProps {
   devices: SafeShieldDeviceStatistics[];
@@ -54,6 +58,19 @@ export function SafeShieldDeviceStatisticsList({
   truncated,
 }: SafeShieldDeviceStatisticsListProps) {
   const orderedDevices = sortedDevices(devices);
+  const [page, setPage] = useState(1);
+  const pageCount = Math.max(
+    1,
+    Math.ceil(orderedDevices.length / DEVICES_PER_PAGE),
+  );
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = (currentPage - 1) * DEVICES_PER_PAGE;
+  const pageEnd = Math.min(pageStart + DEVICES_PER_PAGE, orderedDevices.length);
+  const visibleDevices = orderedDevices.slice(pageStart, pageEnd);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, pageCount));
+  }, [pageCount]);
 
   return (
     <div class="mt-6 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5">
@@ -79,7 +96,7 @@ export function SafeShieldDeviceStatisticsList({
         </p>
       ) : (
         <div class="mt-4 grid gap-3">
-          {orderedDevices.map((device) => (
+          {visibleDevices.map((device) => (
             <article
               class="grid gap-4 rounded-xl bg-white p-4 ring-1 ring-slate-100 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
               key={device.id}
@@ -138,6 +155,44 @@ export function SafeShieldDeviceStatisticsList({
           ))}
         </div>
       )}
+
+      {orderedDevices.length > DEVICES_PER_PAGE ? (
+        <nav
+          aria-label="기기별 통계 페이지"
+          class="mt-4 flex flex-wrap items-center justify-between gap-3"
+        >
+          <p class="m-0 text-xs font-semibold text-slate-500">
+            {formatNumber(pageStart + 1)}–{formatNumber(pageEnd)} /{' '}
+            {formatNumber(orderedDevices.length)}개
+          </p>
+          <div class="flex items-center gap-2">
+            <button
+              class="rounded-lg bg-white px-3 py-2 text-xs font-extrabold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={currentPage <= 1}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              type="button"
+            >
+              이전
+            </button>
+            <span
+              aria-current="page"
+              class="min-w-20 text-center text-xs font-extrabold text-slate-600"
+            >
+              {formatNumber(currentPage)} / {formatNumber(pageCount)}
+            </span>
+            <button
+              class="rounded-lg bg-white px-3 py-2 text-xs font-extrabold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={currentPage >= pageCount}
+              onClick={() =>
+                setPage((current) => Math.min(pageCount, current + 1))
+              }
+              type="button"
+            >
+              다음
+            </button>
+          </div>
+        </nav>
+      ) : null}
 
       {truncated ? (
         <p class="mt-4 mb-0 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-800">
