@@ -1280,10 +1280,29 @@
   height: 3.5rem;
   place-items: center;
   color: #0d9488;
+  isolation: isolate;
 }
 
 .ssh-safeshield-refresh-donut[data-state='error'] {
   color: #dc2626;
+}
+
+.ssh-safeshield-refresh-donut-spinner-svg {
+  position: absolute;
+  inset: 0.4rem;
+  width: calc(100% - 0.8rem);
+  height: calc(100% - 0.8rem);
+  transform-origin: 50% 50%;
+  animation: ssh-safeshield-refresh-donut-orbit 1.15s linear infinite;
+}
+
+.ssh-safeshield-refresh-donut-spinner-track {
+  color: rgb(255 255 255 / 0.12);
+}
+
+.ssh-safeshield-refresh-donut-spinner-arc {
+  color: rgb(255 255 255 / 0.98);
+  filter: drop-shadow(0 0 0.2rem rgb(255 255 255 / 0.42));
 }
 
 .ssh-safeshield-refresh-donut-svg {
@@ -1304,6 +1323,7 @@
 
 .ssh-safeshield-refresh-donut-label {
   position: relative;
+  z-index: 1;
   font-size: 0.68rem;
   font-variant-numeric: tabular-nums;
   font-weight: 900;
@@ -1330,4 +1350,25 @@
 
 .ssh-app[data-theme='dark'] .ssh-safeshield-refresh-donut-track {
   color: #334155;
+}
+
+
+@keyframes ssh-safeshield-refresh-donut-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-refresh-donut-spinner-track {
+  color: rgb(255 255 255 / 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ssh-safeshield-refresh-donut-spinner-svg {
+    animation: none;
+  }
+
+  .ssh-safeshield-refresh-donut-value {
+    transition: none;
+  }
 }

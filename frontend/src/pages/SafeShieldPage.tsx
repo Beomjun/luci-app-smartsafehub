@@ -243,6 +243,9 @@ function RefreshDonut({
   const circumference = 2 * Math.PI * radius;
   const progress = Math.min(1, Math.max(0, step / total));
   const dashOffset = circumference * (1 - progress);
+  const spinnerRadius = 14.5;
+  const spinnerCircumference = 2 * Math.PI * spinnerRadius;
+  const spinnerArcLength = spinnerCircumference * 0.26;
 
   return (
     <span
@@ -254,6 +257,34 @@ function RefreshDonut({
       aria-valuemax={total}
       aria-valuenow={step}
     >
+      {!failed ? (
+        <svg
+          aria-hidden="true"
+          class="ssh-safeshield-refresh-donut-spinner-svg"
+          viewBox="0 0 48 48"
+        >
+          <circle
+            class="ssh-safeshield-refresh-donut-spinner-track"
+            cx="24"
+            cy="24"
+            fill="none"
+            r={spinnerRadius}
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+          <circle
+            class="ssh-safeshield-refresh-donut-spinner-arc"
+            cx="24"
+            cy="24"
+            fill="none"
+            r={spinnerRadius}
+            stroke="currentColor"
+            strokeDasharray={`${spinnerArcLength} ${spinnerCircumference}`}
+            strokeLinecap="round"
+            strokeWidth="2.25"
+          />
+        </svg>
+      ) : null}
       <svg aria-hidden="true" class="ssh-safeshield-refresh-donut-svg" viewBox="0 0 48 48">
         <circle
           class="ssh-safeshield-refresh-donut-track"
