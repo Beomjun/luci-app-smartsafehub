@@ -48,6 +48,7 @@ require_executable "$ROOT_DIR/tests/test-static-validation.sh"
 require_executable "$ROOT_DIR/tests/test-updater.sh"
 require_executable "$ROOT_DIR/tests/test-package-contract.sh"
 require_executable "$ROOT_DIR/tests/test-document-ui-contract.sh"
+require_executable "$ROOT_DIR/tests/test-reload-safety.sh"
 require_executable "$ROOT_DIR/tests/test-rpc-contract.sh"
 require_executable "$ROOT_DIR/tests/test-ucode-imports.sh"
 

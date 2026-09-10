@@ -4,6 +4,17 @@ SmartSafeHub LuCI 애플리케이션의 정식 배포 변경 사항을 기록합
 
 버전은 애플리케이션 버전과 OpenWrt 패키지 릴리스를 함께 표기합니다. 예를 들어 `0.2.0-r1`은 애플리케이션 버전 `0.2.0`, 패키지 릴리스 `1`을 의미합니다.
 
+## [0.2.12-r11] - 2026-09-10
+
+### 테스트
+
+- 브라우저 전체 문서 reload/navigation 경로를 별도 안전 계약으로 고정했습니다. `frontend/src`에서 전체 페이지 이동은 self-update 완료 후의 단일 `window.location.reload()` 경로만 허용하며, RPC·세션·공통 polling·엔트리 부트스트랩 오류 경로에서 `reload/replace/assign/location.href`가 추가되면 테스트가 즉시 실패합니다.
+- 과거에 발생했던 치명적인 무한 reload 회귀를 실제 `useSoftwareUpdates`의 `useEffect` 본문을 소스에서 추출해 실행하는 시나리오 테스트로 보강했습니다. 초기 `data=null`, 첫 실제 상태의 과거 `lastInstallAt`, stale asset/version mismatch, 정상적인 새 설치 완료, reload 후 새 document의 동일 완료 상태, 반복 관찰, 비-idle phase, 누락된 패키지/asset version, 동일 버전 등을 각각 검증합니다.
+- self-update reload latch가 `window.location.reload()`보다 먼저 설정되고, 첫 실제 update state가 baseline만 구성하며, 설치 완료 시각이 바뀌지 않은 상태에서는 다시 reload하지 않는 제어 흐름의 순서도 검증합니다.
+- 세션 만료 경로는 `Access denied`의 UBus/JSON-RPC/HTTP 401·403/문자열 변형을 실제 RPC 판별 함수 본문으로 검증하고, stale RPC가 새 세션을 만료시키지 않는지와 RPC 계층이 별도 session probe를 다시 시작하지 않는지를 회귀 테스트로 고정했습니다.
+- LuCI session endpoint의 401/403, `X-LuCI-Login-Required`, plain `Access denied`, HTML 로그인 응답, redirect, 올바른 session ID, HTTP 500 및 잘못된 payload를 각각 실행해 인증/만료/통신 오류가 혼동되지 않도록 검증합니다. 같은 세션에서 동시에 여러 RPC가 실패해도 session-expired 이벤트가 한 번만 발생하고, 새 로그인 lifecycle에서는 다시 정상적으로 발생할 수 있는지도 실제 `sessionEvents.ts` 모듈로 검증합니다.
+- ShellSpec 계약에 reload/session 안전 회귀 테스트를 추가하고, 정적 검증 및 패키지 계약에서 새 테스트 실행 파일의 존재와 실행 권한도 확인하도록 보강했습니다.
+
 ## [0.2.12-r10] - 2026-09-10
 
 ### 개선

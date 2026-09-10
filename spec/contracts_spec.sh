@@ -57,6 +57,13 @@ Describe 'SmartSafeHub shell contract suite'
     The error should be blank
   End
 
+  It 'passes reload and session safety regression contract'
+    When run command sh "$SHELLSPEC_PROJECT_ROOT/tests/test-reload-safety.sh"
+    The status should be success
+    The output should start with 'PASS:'
+    The error should be blank
+  End
+
   It 'passes settings UI contract'
     When run command sh "$SHELLSPEC_PROJECT_ROOT/tests/test-settings-ui-contract.sh"
     The status should be success

@@ -23,6 +23,7 @@ for script in \
 	tests/test-dashboard-ui-contract.sh \
 	tests/test-network-input-contract.sh \
 	tests/test-update-ui-contract.sh \
+	tests/test-reload-safety.sh \
 	tests/test-settings-ui-contract.sh \
 	tests/test-rpc-contract.sh \
 	tests/test-rules-ui-contract.sh \
