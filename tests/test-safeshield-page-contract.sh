@@ -98,8 +98,16 @@ grep -Fq 'function RefreshProgress' "$PAGE" || \
 	fail 'SafeShield page must render the current user-facing refresh step'
 grep -Fq '<RefreshProgress data={data} />' "$PAGE" || \
 	fail 'SafeShield protection summary must include refresh progress'
-grep -Fq '<SummaryFact label="Protection" value={getProtectionSummaryLabel(data)} />' "$PAGE" || \
-	fail 'SafeShield protection fact must stay separate from refresh operation status'
+grep -Fq '<SummaryBadge data={data} />' "$PAGE" || \
+	fail 'SafeShield summary must keep the top status badge for fast protection-state recognition'
+grep -Fq "<SummaryFact label=\"SafeShield\" value={data.version ?? '확인되지 않음'} />" "$PAGE" || \
+	fail 'SafeShield summary facts must expose the installed SafeShield version instead of duplicating protection status'
+if grep -Fq '<SummaryFact label="Protection" value={getProtectionSummaryLabel(data)} />' "$PAGE"; then
+	fail 'SafeShield summary facts must not duplicate the protection state already shown in the top badge'
+fi
+if grep -Fq "SafeShield {data.version ?? 'unknown'}" "$PAGE"; then
+	fail 'SafeShield version must not remain as a small duplicate line beneath the protection description'
+fi
 if grep -Fq '현재 단계: ${data.stage}' "$PAGE" || grep -Fq '· ${data.stage}' "$PAGE"; then
 	fail 'SafeShield summary must not expose internal refresh stage names'
 fi

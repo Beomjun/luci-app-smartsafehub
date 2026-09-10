@@ -608,9 +608,6 @@ export function SafeShieldPage({
                 {getSummaryMessage(data)}
               </p>
               <RefreshProgress data={data} />
-              <p class="mt-2 mb-0 text-xs font-semibold text-slate-500">
-                SafeShield {data.version ?? 'unknown'}
-              </p>
             </div>
           </div>
 
@@ -650,7 +647,7 @@ export function SafeShieldPage({
 
         <div class="px-5 pb-5 sm:px-6 sm:pb-6">
           <dl class="grid overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-2 xl:grid-cols-4">
-            <SummaryFact label="Protection" value={getProtectionSummaryLabel(data)} />
+            <SummaryFact label="SafeShield" value={data.version ?? '확인되지 않음'} />
             <SummaryFact
               label="Blocklist"
               value={`${formatNumber(displayedBlocklistCount)}개 도메인`}
