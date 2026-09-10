@@ -94,10 +94,18 @@ grep -Fq 'function RefreshDonut' "$PAGE" || \
 	fail 'SafeShield page must render compact donut progress for refresh stages'
 grep -Fq 'role="progressbar"' "$PAGE" || \
 	fail 'SafeShield refresh donut must expose accessible progress semantics'
-grep -Fq 'ssh-safeshield-refresh-donut-spinner-svg' "$PAGE" || \
-	fail 'SafeShield refresh donut must render a distinct inner activity ring while refresh is in progress'
-grep -Fq 'ssh-safeshield-refresh-donut-spinner-arc' "$PAGE" || \
-	fail 'SafeShield refresh donut must render a visible rotating inner arc for active progress'
+grep -Fq 'ssh-safeshield-refresh-loader-svg' "$PAGE" || \
+	fail 'SafeShield refresh donut must use a single round loading ring while refresh is in progress'
+grep -Fq 'ssh-safeshield-refresh-loader-arc' "$PAGE" || \
+	fail 'SafeShield refresh donut must render a rounded rotating arc over the loader track'
+grep -Fq 'const loaderArcLength = loaderCircumference * 0.22;' "$PAGE" || \
+	fail 'SafeShield round loader must keep a compact moving arc so rotation is visually obvious'
+if grep -Fq 'ssh-safeshield-refresh-donut-spinner-' "$PAGE"; then
+	fail 'SafeShield refresh progress must not reintroduce the abandoned nested activity ring'
+fi
+if grep -Fq 'ssh-safeshield-refresh-donut-value' "$PAGE"; then
+	fail 'SafeShield refresh progress must not combine determinate and indeterminate rings'
+fi
 grep -Fq 'function RefreshProgress' "$PAGE" || \
 	fail 'SafeShield page must render the current user-facing refresh step'
 grep -Fq '<RefreshProgress data={data} />' "$PAGE" || \
@@ -125,11 +133,19 @@ grep -Fq '최신 차단 목록 확인' "$ASSET_JS" || \
 	fail 'checked-in app.js must include user-facing SafeShield refresh stage labels'
 grep -Fq '.ssh-safeshield-refresh-donut' "$ASSET_CSS" || \
 	fail 'checked-in app.css must include SafeShield donut refresh styles'
-grep -Fq '.ssh-safeshield-refresh-donut-spinner-svg' "$ASSET_CSS" || \
-	fail 'checked-in app.css must include the rotating SafeShield inner progress ring styles'
-grep -Fq '@keyframes ssh-safeshield-refresh-donut-orbit' "$ASSET_CSS" || \
-	fail 'checked-in app.css must include the SafeShield inner ring orbit animation'
+grep -Fq '.ssh-safeshield-refresh-loader-svg' "$ASSET_CSS" || \
+	fail 'checked-in app.css must include the SafeShield round loader styles'
+grep -Fq '@keyframes ssh-safeshield-refresh-loader-rotate' "$ASSET_CSS" || \
+	fail 'checked-in app.css must include the SafeShield round loader rotation animation'
+grep -Fq '.ssh-safeshield-refresh-loader-track{color:#cbd5e1;stroke:#cbd5e1}' "$ASSET_CSS" || \
+	fail 'light-theme SafeShield loader track must use a clearly visible neutral ring'
+grep -Fq '.ssh-safeshield-refresh-loader-arc{color:#0f172a;stroke:#0f172a' "$ASSET_CSS" || \
+	fail 'light-theme SafeShield loader arc must use an explicit near-black stroke for maximum contrast'
+grep -Fq '.ssh-app[data-theme=dark] .ssh-safeshield-refresh-loader-arc{color:#fff;stroke:#fff' "$ASSET_CSS" || \
+	fail 'dark-theme SafeShield loader arc must use an explicit white stroke for maximum contrast'
+grep -Fq '.ssh-app[data-theme=dark] .ssh-safeshield-refresh-donut-label{color:#5eead4}' "$ASSET_CSS" || \
+	fail 'dark-theme SafeShield loader step label must remain legible inside the ring'
 grep -Fq 'prefers-reduced-motion:reduce' "$ASSET_CSS" || \
-	fail 'checked-in app.css must preserve reduced-motion handling for the SafeShield inner progress ring'
+	fail 'checked-in app.css must preserve reduced-motion handling for the SafeShield round loader'
 
 echo 'PASS: SafeShield product page hierarchy, refresh progress and switch contracts are present'

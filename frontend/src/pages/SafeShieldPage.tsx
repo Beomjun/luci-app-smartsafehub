@@ -239,13 +239,10 @@ function RefreshDonut({
   step: number;
   total: number;
 }) {
-  const radius = 18;
-  const circumference = 2 * Math.PI * radius;
-  const progress = Math.min(1, Math.max(0, step / total));
-  const dashOffset = circumference * (1 - progress);
-  const spinnerRadius = 14.5;
-  const spinnerCircumference = 2 * Math.PI * spinnerRadius;
-  const spinnerArcLength = spinnerCircumference * 0.26;
+  const loaderRadius = 18;
+  const loaderCircumference = 2 * Math.PI * loaderRadius;
+  const loaderArcLength = loaderCircumference * 0.22;
+  const loaderGapLength = loaderCircumference - loaderArcLength;
 
   return (
     <span
@@ -257,56 +254,37 @@ function RefreshDonut({
       aria-valuemax={total}
       aria-valuenow={step}
     >
-      {!failed ? (
-        <svg
-          aria-hidden="true"
-          class="ssh-safeshield-refresh-donut-spinner-svg"
-          viewBox="0 0 48 48"
-        >
+      <svg
+        aria-hidden="true"
+        class={
+          failed
+            ? 'ssh-safeshield-refresh-loader-svg ssh-safeshield-refresh-loader-svg-error'
+            : 'ssh-safeshield-refresh-loader-svg'
+        }
+        viewBox="0 0 48 48"
+      >
+        <circle
+          class="ssh-safeshield-refresh-loader-track"
+          cx="24"
+          cy="24"
+          fill="none"
+          r={loaderRadius}
+          stroke="currentColor"
+          strokeWidth="4"
+        />
+        {!failed ? (
           <circle
-            class="ssh-safeshield-refresh-donut-spinner-track"
+            class="ssh-safeshield-refresh-loader-arc"
             cx="24"
             cy="24"
             fill="none"
-            r={spinnerRadius}
+            r={loaderRadius}
             stroke="currentColor"
-            strokeWidth="2"
-          />
-          <circle
-            class="ssh-safeshield-refresh-donut-spinner-arc"
-            cx="24"
-            cy="24"
-            fill="none"
-            r={spinnerRadius}
-            stroke="currentColor"
-            strokeDasharray={`${spinnerArcLength} ${spinnerCircumference}`}
+            strokeDasharray={`${loaderArcLength} ${loaderGapLength}`}
             strokeLinecap="round"
-            strokeWidth="2.25"
+            strokeWidth="7"
           />
-        </svg>
-      ) : null}
-      <svg aria-hidden="true" class="ssh-safeshield-refresh-donut-svg" viewBox="0 0 48 48">
-        <circle
-          class="ssh-safeshield-refresh-donut-track"
-          cx="24"
-          cy="24"
-          fill="none"
-          r={radius}
-          stroke="currentColor"
-          strokeWidth="5"
-        />
-        <circle
-          class="ssh-safeshield-refresh-donut-value"
-          cx="24"
-          cy="24"
-          fill="none"
-          r={radius}
-          stroke="currentColor"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
-          strokeLinecap="round"
-          strokeWidth="5"
-        />
+        ) : null}
       </svg>
       <span class="ssh-safeshield-refresh-donut-label">
         {failed ? '!' : `${step}/${total}`}
