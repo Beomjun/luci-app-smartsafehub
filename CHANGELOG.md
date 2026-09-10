@@ -4,6 +4,17 @@ SmartSafeHub LuCI 애플리케이션의 정식 배포 변경 사항을 기록합
 
 버전은 애플리케이션 버전과 OpenWrt 패키지 릴리스를 함께 표기합니다. 예를 들어 `0.2.0-r1`은 애플리케이션 버전 `0.2.0`, 패키지 릴리스 `1`을 의미합니다.
 
+## [0.2.12-r9] - 2026-09-10
+
+### 수정
+
+- 업데이트 상태 hook이 첫 렌더의 `data=null`을 `lastInstallAt=null` 기준값으로 저장한 뒤, 첫 실제 응답에 남아 있는 과거 `lastInstallAt`을 새 설치 완료로 오인하던 문제를 수정했습니다. 설치 버전과 로드된 asset 버전이 다른 상태에서는 이 오인이 매 페이지 로드마다 `window.location.reload()`를 실행해 `연결 확인 → Dashboard/Access denied → 연결 확인`이 반복될 수 있었습니다.
+- 이제 첫 **실제** 업데이트 상태 응답의 `lastInstallAt`을 기준값으로만 저장하고 자동 새로고침하지 않습니다. 같은 페이지가 이후 updater의 새로운 설치 완료 시각을 실제로 관찰한 경우에만 한 번 새로고침하므로, 과거 update state와 asset version 불일치만으로는 reload loop가 발생하지 않습니다.
+
+### 테스트
+
+- 초기 `data=null`이 self-update reload 기준값으로 사용되지 않는지, 첫 실제 update state는 기준값만 설정하는지, 이후 새로운 `lastInstallAt` 변화에만 자동 새로고침 조건이 열리는지 update UI contract를 보강했습니다.
+
 ## [0.2.12-r8] - 2026-09-10
 
 ### 수정

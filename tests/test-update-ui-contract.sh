@@ -167,12 +167,21 @@ grep -Fq 'window.location.reload();' "$UPDATES_HOOK" || \
 	fail 'self-update completion must reload the SmartSafeHub entry once for fresh assets'
 grep -Fq 'const lastObservedInstallAt = useRef<number | null | undefined>(undefined);' "$UPDATES_HOOK" || \
 	fail 'self-update reload must track the install completion timestamp per mounted page'
-grep -Fq 'previousLastInstallAt === undefined' "$UPDATES_HOOK" || \
-	fail 'initial update state must establish a baseline instead of reloading on a version mismatch'
+grep -Fq 'if (reloadRequested.current || !resource.data)' "$UPDATES_HOOK" || \
+	fail 'empty initial update data must not seed the self-update reload baseline'
+grep -Fq 'const lastInstallAt = resource.data.lastInstallAt ?? null;' "$UPDATES_HOOK" || \
+	fail 'self-update baseline must be derived only from a real update-status response'
+grep -Fq 'if (previousLastInstallAt === undefined)' "$UPDATES_HOOK" || \
+	fail 'the first real update state must establish a baseline without reloading'
+grep -Fq 'lastObservedInstallAt.current = lastInstallAt;' "$UPDATES_HOOK" || \
+	fail 'self-update reload must remember the latest observed install timestamp'
 grep -Fq 'lastInstallAt === previousLastInstallAt' "$UPDATES_HOOK" || \
 	fail 'unchanged install timestamps must not trigger another automatic reload'
-grep -Fq "resource.data?.phase !== 'idle'" "$UPDATES_HOOK" || \
+grep -Fq "resource.data.phase !== 'idle'" "$UPDATES_HOOK" || \
 	fail 'asset reload must only happen after the updater returns to idle'
+if grep -Fq 'resource.data?.lastInstallAt ?? null' "$UPDATES_HOOK"; then
+	fail 'data=null must not be converted into a fake lastInstallAt baseline'
+fi
 
 # Update and device/system management are separate product pages.
 grep -Fq '<SoftwareUpdatesCard' "$UPDATE_PAGE" || \

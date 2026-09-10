@@ -43,25 +43,34 @@ export function useSoftwareUpdates(active = true) {
   const lastObservedInstallAt = useRef<number | null | undefined>(undefined);
 
   useEffect(() => {
-    if (reloadRequested.current) {
+    if (reloadRequested.current || !resource.data) {
       return;
     }
 
-    const lastInstallAt = resource.data?.lastInstallAt ?? null;
+    const lastInstallAt = resource.data.lastInstallAt ?? null;
     const previousLastInstallAt = lastObservedInstallAt.current;
+
+    // The resource starts with data=null. Do not treat that empty render as an
+    // update-state baseline: otherwise the first real state (which may contain
+    // an old lastInstallAt from a previous installation) looks like a newly
+    // completed install on every page load and causes an endless reload loop.
+    if (previousLastInstallAt === undefined) {
+      lastObservedInstallAt.current = lastInstallAt;
+      return;
+    }
+
     lastObservedInstallAt.current = lastInstallAt;
 
     // Version information in /tmp/smartsafehub-updates.state can be stale after
     // a manual APK install or while LuCI is still serving a cached entry
     // template. A raw version mismatch must therefore never reload by itself.
     // Reload only when this mounted page observes a newly completed updater
-    // installation. After the reload, the new mount treats that timestamp as
-    // its baseline and cannot enter a reload loop.
+    // installation. After the reload, the first real update state establishes
+    // a fresh baseline and cannot trigger another reload by itself.
     if (
-      previousLastInstallAt === undefined ||
       lastInstallAt === null ||
       lastInstallAt === previousLastInstallAt ||
-      resource.data?.phase !== 'idle'
+      resource.data.phase !== 'idle'
     ) {
       return;
     }
