@@ -1202,3 +1202,132 @@
     animation-duration: 1.4s;
   }
 }
+
+/* SafeShield refresh progress keeps internal stage names out of the product UI
+ * and presents the six user-facing refresh phases as a compact donut. */
+.ssh-safeshield-refresh {
+  display: flex;
+  max-width: 48rem;
+  align-items: center;
+  gap: 0.875rem;
+  margin-top: 1rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid #ccfbf1;
+  border-radius: 1rem;
+  background: rgb(240 253 250 / 0.7);
+}
+
+.ssh-safeshield-refresh[data-state='error'] {
+  border-color: #fecaca;
+  background: rgb(254 242 242 / 0.78);
+}
+
+.ssh-safeshield-refresh-copy {
+  min-width: 0;
+}
+
+.ssh-safeshield-refresh-kicker,
+.ssh-safeshield-refresh-title,
+.ssh-safeshield-refresh-description,
+.ssh-safeshield-refresh-error-code {
+  margin: 0;
+}
+
+.ssh-safeshield-refresh-kicker {
+  color: #0f766e;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ssh-safeshield-refresh[data-state='error'] .ssh-safeshield-refresh-kicker {
+  color: #b91c1c;
+}
+
+.ssh-safeshield-refresh-title {
+  margin-top: 0.25rem;
+  color: #0f172a;
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.ssh-safeshield-refresh-description {
+  margin-top: 0.25rem;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+.ssh-safeshield-refresh-error-code {
+  margin-top: 0.375rem;
+  overflow-wrap: anywhere;
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.ssh-safeshield-refresh-error-code code {
+  font: inherit;
+}
+
+.ssh-safeshield-refresh-donut {
+  position: relative;
+  display: grid;
+  width: 3.5rem;
+  min-width: 3.5rem;
+  height: 3.5rem;
+  place-items: center;
+  color: #0d9488;
+}
+
+.ssh-safeshield-refresh-donut[data-state='error'] {
+  color: #dc2626;
+}
+
+.ssh-safeshield-refresh-donut-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ssh-safeshield-refresh-donut-track {
+  color: #e2e8f0;
+}
+
+.ssh-safeshield-refresh-donut-value {
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+.ssh-safeshield-refresh-donut-label {
+  position: relative;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-refresh {
+  border-color: #134e4a;
+  background: rgb(15 118 110 / 0.12);
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-refresh[data-state='error'] {
+  border-color: #7f1d1d;
+  background: rgb(127 29 29 / 0.18);
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-refresh-title {
+  color: #f8fafc;
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-refresh-description,
+.ssh-app[data-theme='dark'] .ssh-safeshield-refresh-error-code {
+  color: #94a3b8;
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-refresh-donut-track {
+  color: #334155;
+}

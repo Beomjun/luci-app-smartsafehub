@@ -17,6 +17,11 @@ import { ErrorPanel, LoadingPanel } from '../components/StatePanels';
 import type { SafeShieldAction } from '../hooks/useSafeShieldActions';
 import type { SafeShieldStatistics, SafeShieldStatus } from '../types/safeshield';
 import {
+  getSafeShieldRefreshErrorMessage,
+  getSafeShieldRefreshStep,
+  isSafeShieldRefreshTransition,
+} from '../utils/safeshieldRefresh';
+import {
   formatBytes,
   formatInterval,
   formatNumber,
@@ -102,7 +107,33 @@ function getProductProtectionState(data: SafeShieldStatus): ProductProtectionSta
   return 'attention';
 }
 
+function getProtectionSummaryLabel(data: SafeShieldStatus): string {
+  if (!data.enabled || data.status === 'disabled') {
+    return '비활성화';
+  }
+
+  if (data.active && data.runtime.dnsmasqRunning && data.runtime.dnsRuntimeOk) {
+    return '보호 중';
+  }
+
+  if (data.status === 'paused') {
+    return '일시 중지';
+  }
+
+  return '확인 필요';
+}
+
 function getSummaryLabel(data: SafeShieldStatus): string {
+  const protectionState = getProductProtectionState(data);
+
+  if (
+    protectionState === 'error' &&
+    getProtectionSummaryLabel(data) === '보호 중' &&
+    data.runtime.lastErrorCode
+  ) {
+    return '갱신 실패';
+  }
+
   const labels: Record<ProductProtectionState, string> = {
     disabled: '비활성화',
     refreshing: '갱신 중',
@@ -112,7 +143,7 @@ function getSummaryLabel(data: SafeShieldStatus): string {
     attention: '확인 필요',
   };
 
-  return labels[getProductProtectionState(data)];
+  return labels[protectionState];
 }
 
 function getSummaryMessage(data: SafeShieldStatus): string {
@@ -131,9 +162,7 @@ function getSummaryMessage(data: SafeShieldStatus): string {
   }
 
   if (protectionState === 'refreshing') {
-    return data.stage
-      ? `차단 목록을 갱신하고 있습니다. 현재 단계: ${data.stage}`
-      : '차단 목록을 갱신하고 있습니다.';
+    return '차단 목록을 최신 상태로 갱신하고 있습니다.';
   }
 
   if (protectionState === 'disabled') {
@@ -145,9 +174,11 @@ function getSummaryMessage(data: SafeShieldStatus): string {
   }
 
   if (protectionState === 'error') {
-    return data.runtime.lastErrorCode
-      ? `최근 작업에서 오류가 발생했습니다: ${data.runtime.lastErrorCode}`
-      : '최근 SafeShield 작업에서 오류가 발생했습니다.';
+    if (getProtectionSummaryLabel(data) === '보호 중') {
+      return '기존 DNS 보호는 유지되고 있지만 최근 차단 목록 갱신을 완료하지 못했습니다.';
+    }
+
+    return 'SafeShield 보호 상태에 문제가 발생했습니다. 아래 오류 내용을 확인해 주세요.';
   }
 
   if (!data.active) {
@@ -195,6 +226,105 @@ function SummaryBadge({ data }: { data: SafeShieldStatus }) {
     >
       {getSummaryLabel(data)}
     </span>
+  );
+}
+
+
+function RefreshDonut({
+  failed,
+  step,
+  total,
+}: {
+  failed: boolean;
+  step: number;
+  total: number;
+}) {
+  const radius = 18;
+  const circumference = 2 * Math.PI * radius;
+  const progress = Math.min(1, Math.max(0, step / total));
+  const dashOffset = circumference * (1 - progress);
+
+  return (
+    <span
+      aria-label={failed ? `갱신 실패 · ${step}/${total} 단계` : `갱신 ${step}/${total} 단계`}
+      class="ssh-safeshield-refresh-donut"
+      data-state={failed ? 'error' : 'active'}
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={total}
+      aria-valuenow={step}
+    >
+      <svg aria-hidden="true" class="ssh-safeshield-refresh-donut-svg" viewBox="0 0 48 48">
+        <circle
+          class="ssh-safeshield-refresh-donut-track"
+          cx="24"
+          cy="24"
+          fill="none"
+          r={radius}
+          stroke="currentColor"
+          strokeWidth="5"
+        />
+        <circle
+          class="ssh-safeshield-refresh-donut-value"
+          cx="24"
+          cy="24"
+          fill="none"
+          r={radius}
+          stroke="currentColor"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          strokeLinecap="round"
+          strokeWidth="5"
+        />
+      </svg>
+      <span class="ssh-safeshield-refresh-donut-label">
+        {failed ? '!' : `${step}/${total}`}
+      </span>
+    </span>
+  );
+}
+
+function RefreshProgress({ data }: { data: SafeShieldStatus }) {
+  const refreshing = isSafeShieldRefreshTransition(data.status, data.stage);
+  const protectionState = getProductProtectionState(data);
+  const failed = protectionState === 'error';
+
+  if (!refreshing && !failed) {
+    return null;
+  }
+
+  const step = getSafeShieldRefreshStep(data.stage);
+  const errorMessage = failed
+    ? getSafeShieldRefreshErrorMessage(data.runtime.lastErrorCode, data.stage)
+    : null;
+
+  return (
+    <div
+      aria-live={failed ? 'assertive' : 'polite'}
+      class="ssh-safeshield-refresh"
+      data-state={failed ? 'error' : 'active'}
+      role={failed ? 'alert' : 'status'}
+    >
+      <RefreshDonut failed={failed} step={step.number} total={step.total} />
+      <div class="ssh-safeshield-refresh-copy">
+        <p class="ssh-safeshield-refresh-kicker">
+          {failed
+            ? `갱신 실패 · ${step.number}/${step.total}`
+            : `갱신 ${step.number}/${step.total}`}
+        </p>
+        <p class="ssh-safeshield-refresh-title">
+          {failed ? `${step.label} 단계에서 문제가 발생했습니다.` : step.label}
+        </p>
+        <p class="ssh-safeshield-refresh-description">
+          {errorMessage ?? step.description}
+        </p>
+        {failed && data.runtime.lastErrorCode ? (
+          <p class="ssh-safeshield-refresh-error-code">
+            오류 코드: <code>{data.runtime.lastErrorCode}</code>
+          </p>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -341,6 +471,17 @@ export function SafeShieldPage({
 }: SafeShieldPageProps) {
   const [licenseKey, setLicenseKey] = useState('');
   const [licenseKeyLoaded, setLicenseKeyLoaded] = useState(false);
+  const [lastKnownBlocklistCount, setLastKnownBlocklistCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (
+      data?.available &&
+      data.blocklist.validLineCount > 0 &&
+      !isSafeShieldRefreshTransition(data.status, data.stage)
+    ) {
+      setLastKnownBlocklistCount(data.blocklist.validLineCount);
+    }
+  }, [data?.available, data?.blocklist.validLineCount, data?.stage, data?.status]);
 
   useEffect(() => {
     if (data?.license.configured === false) {
@@ -378,8 +519,15 @@ export function SafeShieldPage({
   }
 
   const enabled = data.enabled;
-  const refreshing = data.status === 'running';
+  const refreshing = isSafeShieldRefreshTransition(data.status, data.stage);
   const actionBusy = action !== null;
+  const preserveBlocklistCount = refreshing || getProductProtectionState(data) === 'error';
+  const displayedBlocklistCount =
+    preserveBlocklistCount &&
+    data.blocklist.validLineCount === 0 &&
+    lastKnownBlocklistCount !== null
+      ? lastKnownBlocklistCount
+      : data.blocklist.validLineCount;
   const toggleLabel = enabled
     ? action === 'disable'
       ? '끄는 중…'
@@ -459,9 +607,9 @@ export function SafeShieldPage({
               <p class="mt-3 mb-0 max-w-3xl text-sm leading-6 text-slate-600">
                 {getSummaryMessage(data)}
               </p>
+              <RefreshProgress data={data} />
               <p class="mt-2 mb-0 text-xs font-semibold text-slate-500">
                 SafeShield {data.version ?? 'unknown'}
-                {data.stage ? ` · ${data.stage}` : ''}
               </p>
             </div>
           </div>
@@ -502,10 +650,10 @@ export function SafeShieldPage({
 
         <div class="px-5 pb-5 sm:px-6 sm:pb-6">
           <dl class="grid overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-2 xl:grid-cols-4">
-            <SummaryFact label="Protection" value={getSummaryLabel(data)} />
+            <SummaryFact label="Protection" value={getProtectionSummaryLabel(data)} />
             <SummaryFact
               label="Blocklist"
-              value={`${formatNumber(data.blocklist.validLineCount)}개 도메인`}
+              value={`${formatNumber(displayedBlocklistCount)}개 도메인`}
             />
             <SummaryFact label="Last refresh" value={formatTimestamp(data.timestamps.lastSuccess)} />
             <SummaryFact label="Plan" value={data.license.plan?.toUpperCase() || 'FREE'} />

@@ -6,13 +6,15 @@ ROOT_DIR="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 PAGE="$ROOT_DIR/frontend/src/pages/SafeShieldPage.tsx"
 PANEL="$ROOT_DIR/frontend/src/components/SafeShieldStatisticsPanel.tsx"
 NAVIGATION="$ROOT_DIR/frontend/src/components/ProductNavigation.tsx"
+ASSET_JS="$ROOT_DIR/root/www/luci-static/smartsafehub/app.js"
+ASSET_CSS="$ROOT_DIR/root/www/luci-static/smartsafehub/app.css"
 
 fail() {
 	echo "FAIL: $*" >&2
 	exit 1
 }
 
-for file in "$PAGE" "$PANEL" "$NAVIGATION"; do
+for file in "$PAGE" "$PANEL" "$NAVIGATION" "$ASSET_JS" "$ASSET_CSS"; do
 	[ -f "$file" ] || fail "missing SafeShield product UI source: ${file#$ROOT_DIR/}"
 done
 
@@ -66,4 +68,50 @@ if grep -Fq "targetEnabled ? 'translate-x-6' : 'translate-x-1'" "$PANEL"; then
 	fail 'SafeShield statistics switch thumb must not rely on translate positioning'
 fi
 
-echo 'PASS: SafeShield product page hierarchy and subdued sidebar toggle contract are present'
+REFRESH_MODEL="$ROOT_DIR/frontend/src/utils/safeshieldRefresh.ts"
+[ -f "$REFRESH_MODEL" ] || fail 'missing SafeShield refresh presentation model'
+
+grep -Fq "label: '갱신 준비'" "$REFRESH_MODEL" || \
+	fail 'SafeShield refresh UI must start with a user-facing preparation step'
+grep -Fq "label: '최신 차단 목록 확인'" "$REFRESH_MODEL" || \
+	fail 'SafeShield refresh UI must translate resolve_api into a user-facing step'
+grep -Fq "label: '차단 목록 다운로드'" "$REFRESH_MODEL" || \
+	fail 'SafeShield refresh UI must expose a download step'
+grep -Fq "label: '사용자 규칙 적용'" "$REFRESH_MODEL" || \
+	fail 'SafeShield refresh UI must expose a custom-rule step'
+grep -Fq "label: '보호 규칙 적용'" "$REFRESH_MODEL" || \
+	fail 'SafeShield refresh UI must expose an install step'
+grep -Fq "label: '보호 상태 확인'" "$REFRESH_MODEL" || \
+	fail 'SafeShield refresh UI must end with a protection verification step'
+grep -Fq "stages: ['resolve_api']" "$REFRESH_MODEL" || \
+	fail 'resolve_api must map to the latest blocklist lookup step'
+grep -Fq "stages: ['runtime_check', 'blocklist_verify']" "$REFRESH_MODEL" || \
+	fail 'runtime verification stages must map to the final user-facing step'
+grep -Fq 'getSafeShieldRefreshErrorMessage' "$REFRESH_MODEL" || \
+	fail 'SafeShield refresh failures must have user-facing error explanations'
+
+grep -Fq 'function RefreshDonut' "$PAGE" || \
+	fail 'SafeShield page must render compact donut progress for refresh stages'
+grep -Fq 'role="progressbar"' "$PAGE" || \
+	fail 'SafeShield refresh donut must expose accessible progress semantics'
+grep -Fq 'function RefreshProgress' "$PAGE" || \
+	fail 'SafeShield page must render the current user-facing refresh step'
+grep -Fq '<RefreshProgress data={data} />' "$PAGE" || \
+	fail 'SafeShield protection summary must include refresh progress'
+grep -Fq '<SummaryFact label="Protection" value={getProtectionSummaryLabel(data)} />' "$PAGE" || \
+	fail 'SafeShield protection fact must stay separate from refresh operation status'
+if grep -Fq '현재 단계: ${data.stage}' "$PAGE" || grep -Fq '· ${data.stage}' "$PAGE"; then
+	fail 'SafeShield summary must not expose internal refresh stage names'
+fi
+
+grep -Fq 'lastKnownBlocklistCount' "$PAGE" || \
+	fail 'SafeShield summary must retain the last known blocklist count during transient refresh data'
+
+grep -Fq 'ssh-safeshield-refresh-donut' "$ASSET_JS" || \
+	fail 'checked-in app.js must include SafeShield donut refresh progress'
+grep -Fq '최신 차단 목록 확인' "$ASSET_JS" || \
+	fail 'checked-in app.js must include user-facing SafeShield refresh stage labels'
+grep -Fq '.ssh-safeshield-refresh-donut' "$ASSET_CSS" || \
+	fail 'checked-in app.css must include SafeShield donut refresh styles'
+
+echo 'PASS: SafeShield product page hierarchy, refresh progress and switch contracts are present'
