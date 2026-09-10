@@ -47,15 +47,6 @@ export function useSoftwareUpdates(active = true) {
     }
 
     const phase = resource.data?.phase;
-    if (
-      phase === 'installing' &&
-      resource.error?.trim().toLowerCase() === 'access denied'
-    ) {
-      reloadRequested.current = true;
-      window.location.reload();
-      return;
-    }
-
     if (phase !== 'idle') {
       return;
     }
@@ -73,7 +64,7 @@ export function useSoftwareUpdates(active = true) {
       reloadRequested.current = true;
       window.location.reload();
     }
-  }, [resource.data, resource.error]);
+  }, [resource.data]);
 
   const markPhase = useCallback(
     (phase: SoftwareUpdateStatus['phase']) => {

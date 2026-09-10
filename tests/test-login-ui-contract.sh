@@ -4,17 +4,23 @@ set -eu
 
 ROOT_DIR="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 LOGIN="$ROOT_DIR/frontend/src/login/LoginApp.tsx"
+MAIN="$ROOT_DIR/frontend/src/main.tsx"
+SESSION="$ROOT_DIR/frontend/src/auth/session.ts"
+SESSION_EVENTS="$ROOT_DIR/frontend/src/auth/sessionEvents.ts"
+RPC="$ROOT_DIR/frontend/src/api/rpc.ts"
 THEME="$ROOT_DIR/frontend/src/utils/theme.ts"
 APP_SHELL="$ROOT_DIR/frontend/src/components/AppShell.tsx"
 ICONS="$ROOT_DIR/frontend/src/components/Icons.tsx"
 STYLES="$ROOT_DIR/frontend/src/styles/app.css"
+BUILT_JS="$ROOT_DIR/root/www/luci-static/smartsafehub/app.js"
+BUILT_CSS="$ROOT_DIR/root/www/luci-static/smartsafehub/app.css"
 
 fail() {
 	echo "FAIL: $*" >&2
 	exit 1
 }
 
-for file in "$LOGIN" "$THEME" "$APP_SHELL" "$ICONS" "$STYLES"; do
+for file in "$LOGIN" "$MAIN" "$SESSION" "$SESSION_EVENTS" "$RPC" "$THEME" "$APP_SHELL" "$ICONS" "$STYLES" "$BUILT_JS" "$BUILT_CSS"; do
 	[ -f "$file" ] || fail "missing login UI source: ${file#$ROOT_DIR/}"
 done
 
@@ -50,6 +56,43 @@ grep -Fq 'applyDocumentTheme(theme);' "$LOGIN" || \
 	fail 'public login must update document theme metadata'
 grep -Fq 'applyDocumentTheme(readColorTheme());' "$ROOT_DIR/frontend/src/main.tsx" || \
 	fail 'public entry must apply the saved theme before session probing/rendering'
+
+grep -Fq 'response.status === 401' "$SESSION" || \
+	fail 'session probe must treat HTTP 401 as an unauthenticated session'
+grep -Fq 'response.redirected' "$SESSION" || \
+	fail 'session probe must recognize a followed LuCI login redirect after an invalid token body'
+grep -Fq '/^<!doctype\s+html/i.test(sessionId)' "$SESSION" || \
+	fail 'session probe must recognize a rendered LuCI login document as unauthenticated'
+
+grep -Fq "export const SESSION_EXPIRED_EVENT = 'smartsafehub:session-expired';" "$SESSION_EVENTS" || \
+	fail 'session expiry must use one shared application event'
+grep -Fq 'notifySessionExpired(sessionId);' "$RPC" || \
+	fail 'RPC access denial must notify the application after session expiry is confirmed'
+grep -Fq 'if (await probeLuciSession())' "$RPC" || \
+	fail 'RPC access denial must confirm the LuCI session before treating it as expired'
+grep -Fq "new RpcError('SESSION_EXPIRED', SESSION_EXPIRED_MESSAGE)" "$RPC" || \
+	fail 'confirmed expiry must become a dedicated session-expired RPC error'
+grep -Fq 'window.addEventListener(SESSION_EXPIRED_EVENT' "$MAIN" || \
+	fail 'public entry must listen for session expiry globally'
+grep -Fq 'renderLogin(host, mountPoint, SESSION_EXPIRED_MESSAGE);' "$MAIN" || \
+	fail 'session expiry must replace the authenticated application with the login screen'
+grep -Fq 'notice={notice}' "$MAIN" || \
+	fail 'login rendering must receive session-expiry feedback'
+grep -Fq 'class="ssh-login-toast"' "$LOGIN" || \
+	fail 'session-expiry feedback must be rendered as a login toast'
+grep -Fq 'role="alert"' "$LOGIN" || \
+	fail 'session-expiry toast must be announced to assistive technology'
+grep -Fq 'window.setTimeout(() => setNotice(null), 7_000);' "$LOGIN" || \
+	fail 'session-expiry toast must dismiss automatically'
+grep -Fq '.ssh-login-toast {' "$STYLES" || \
+	fail 'session-expiry toast must have isolated login styling'
+
+grep -Fq 'smartsafehub:session-expired' "$BUILT_JS" || \
+	fail 'built frontend asset must include global session-expiry handling'
+grep -Fq 'ssh-login-toast' "$BUILT_JS" || \
+	fail 'built frontend asset must include the session-expiry toast'
+grep -Fq '.ssh-login-toast' "$BUILT_CSS" || \
+	fail 'built stylesheet must include session-expiry toast styling'
 
 grep -Fq "export const THEME_STORAGE_KEY = 'smartsafehub.theme';" "$THEME" || \
 	fail 'login and authenticated app must share one theme preference key'

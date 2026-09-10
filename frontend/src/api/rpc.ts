@@ -1,3 +1,8 @@
+import { probeLuciSession } from '../auth/session';
+import {
+  notifySessionExpired,
+  SESSION_EXPIRED_MESSAGE,
+} from '../auth/sessionEvents';
 import type { SmartSafeHubBootstrap } from '../types/bootstrap';
 import type { ApiResponse } from '../types/status';
 
@@ -67,6 +72,40 @@ function normalizedTimeout(value: number | undefined): number {
     MAX_TIMEOUT_MS,
     Math.max(MIN_TIMEOUT_MS, Math.trunc(value)),
   );
+}
+
+function isAccessDenied(error: RpcError): boolean {
+  const message = error.message.trim().toLowerCase();
+
+  return (
+    error.code === 'UBUS_6' ||
+    error.code === 'JSON_RPC_-32002' ||
+    (error.code === 'HTTP_ERROR' && /HTTP (401|403)\b/.test(error.message)) ||
+    message.includes('access denied') ||
+    message.includes('permission denied') ||
+    message.includes('접근 권한')
+  );
+}
+
+async function sessionExpiryError(
+  error: RpcError,
+  sessionId: string,
+): Promise<RpcError> {
+  if (!isAccessDenied(error)) {
+    return error;
+  }
+
+  try {
+    if (await probeLuciSession()) {
+      return error;
+    }
+  } catch {
+    // Do not mistake a temporary session-probe/network failure for expiry.
+    return error;
+  }
+
+  notifySessionExpired(sessionId);
+  return new RpcError('SESSION_EXPIRED', SESSION_EXPIRED_MESSAGE);
 }
 
 function parseJsonRpcResponse<T>(payload: unknown, requestIdentifier: number): T {
@@ -174,7 +213,7 @@ export async function callRpc<T>(
     }
 
     if (error instanceof RpcError) {
-      throw error;
+      throw await sessionExpiryError(error, bootstrap.sessionId);
     }
 
     throw new RpcError(
@@ -192,10 +231,14 @@ export async function callApi<T>(
   params: Record<string, unknown> = {},
   options: RpcCallOptions = {},
 ): Promise<T> {
+  const bootstrap = getBootstrap();
   const response = await callRpc<ApiResponse<T>>(object, method, params, options);
 
   if (!response.ok) {
-    throw new RpcError(response.error.code, response.error.message);
+    throw await sessionExpiryError(
+      new RpcError(response.error.code, response.error.message),
+      bootstrap.sessionId,
+    );
   }
 
   return response.data;

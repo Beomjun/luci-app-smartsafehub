@@ -158,14 +158,13 @@ grep -Fq 'const millisecondsUntilStale = () =>' "$ASYNC_RESOURCE" || \
 	fail 'visibility/focus refresh must be gated by the polling staleness interval'
 grep -Fq 'if (millisecondsUntilStale() > 0)' "$ASYNC_RESOURCE" || \
 	fail 'focus refresh must reschedule instead of reloading fresh data'
-grep -Fq "phase === 'installing'" "$UPDATES_HOOK" || \
-	fail 'install polling recovery must be scoped to the installing phase'
-grep -Fq "resource.error?.trim().toLowerCase() === 'access denied'" "$UPDATES_HOOK" || \
-	fail 'install polling must stop and recover when the LuCI session disappears'
+if grep -Fq "resource.error?.trim().toLowerCase() === 'access denied'" "$UPDATES_HOOK"; then
+	fail 'update polling must rely on global session-expiry handling instead of page reload loops'
+fi
 grep -Fq 'installedVersion !== loadedAssetVersion' "$UPDATES_HOOK" || \
 	fail 'completed self-updates must detect when the browser is running stale assets'
 grep -Fq 'window.location.reload();' "$UPDATES_HOOK" || \
-	fail 'self-update completion/session loss must reload the SmartSafeHub entry once'
+	fail 'self-update completion must reload the SmartSafeHub entry once for fresh assets'
 
 # Update and device/system management are separate product pages.
 grep -Fq '<SoftwareUpdatesCard' "$UPDATE_PAGE" || \

@@ -1,6 +1,11 @@
 import { render } from 'preact';
 
 import { probeLuciSession } from './auth/session';
+import {
+  markSessionActive,
+  SESSION_EXPIRED_EVENT,
+  SESSION_EXPIRED_MESSAGE,
+} from './auth/sessionEvents';
 import { App } from './app/App';
 import { LoginApp } from './login/LoginApp';
 import { luciUrl, smartSafeHubPublicUrl } from './utils/luci';
@@ -27,11 +32,12 @@ function canonicalizeEntryUrl(): void {
 }
 
 function installBootstrap(sessionId: string, host: HTMLElement): void {
+  markSessionActive();
   window.__SMARTHUB_BOOTSTRAP__ = Object.freeze({
     sessionId,
     rpcUrl: luciUrl('/admin/ubus'),
     assetBase: host.dataset.assetBase ?? '/luci-static/smartsafehub/',
-    assetVersion: host.dataset.assetVersion ?? '0.2.12-r3',
+    assetVersion: host.dataset.assetVersion ?? '0.2.12-r4',
     locale: document.documentElement.lang || 'ko',
   });
 }
@@ -90,11 +96,16 @@ function renderAuthenticated(
   render(<App />, mountPoint);
 }
 
-function renderLogin(host: HTMLElement, mountPoint: HTMLElement): void {
+function renderLogin(
+  host: HTMLElement,
+  mountPoint: HTMLElement,
+  notice?: string,
+): void {
   delete window.__SMARTHUB_BOOTSTRAP__;
   mountPoint.className = 'smartsafehub-login-shadow-root';
   render(
     <LoginApp
+      notice={notice}
       onAuthenticated={(sessionId) => {
         renderAuthenticated(host, mountPoint, sessionId);
       }}
@@ -122,6 +133,10 @@ async function bootstrapEntry(): Promise<void> {
   host.style.isolation = 'isolate';
 
   const mountPoint = getMountPoint(host, 'smartsafehub-login-shadow-root');
+
+  window.addEventListener(SESSION_EXPIRED_EVENT, () => {
+    renderLogin(host, mountPoint, SESSION_EXPIRED_MESSAGE);
+  });
 
   render(
     <LoginApp

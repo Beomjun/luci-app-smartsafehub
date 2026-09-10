@@ -11,7 +11,11 @@ function loginRequired(response: Response): boolean {
 }
 
 async function sessionIdFromResponse(response: Response): Promise<string | null> {
-  if (response.status === 403 || loginRequired(response)) {
+  if (
+    response.status === 401 ||
+    response.status === 403 ||
+    loginRequired(response)
+  ) {
     return null;
   }
 
@@ -21,11 +25,19 @@ async function sessionIdFromResponse(response: Response): Promise<string | null>
 
   const sessionId = (await response.text()).trim();
 
-  if (!SESSION_ID_PATTERN.test(sessionId)) {
-    throw new Error('LuCI session endpoint returned an invalid session id');
+  if (SESSION_ID_PATTERN.test(sessionId)) {
+    return sessionId;
   }
 
-  return sessionId;
+  if (
+    response.redirected ||
+    /^<!doctype\s+html/i.test(sessionId) ||
+    /<html(?:\s|>)/i.test(sessionId)
+  ) {
+    return null;
+  }
+
+  throw new Error('LuCI session endpoint returned an invalid session id');
 }
 
 async function fetchSession(options: RequestInit = {}): Promise<string | null> {

@@ -26,6 +26,7 @@ import type { ColorTheme } from '../utils/theme';
 type LoginPhase = 'ready' | 'submitting';
 
 interface LoginAppProps {
+  notice?: string | undefined;
   onAuthenticated: (sessionId: string) => void;
   probing?: boolean;
 }
@@ -56,7 +57,11 @@ function ThemeIcon({ theme }: { theme: ColorTheme }) {
   return theme === 'dark' ? <SunIcon /> : <MoonIcon />;
 }
 
-export function LoginApp({ onAuthenticated, probing = false }: LoginAppProps) {
+export function LoginApp({
+  notice: initialNotice,
+  onAuthenticated,
+  probing = false,
+}: LoginAppProps) {
   const fallbackUrl = useMemo(luciSessionUrl, []);
   const usernameInput = useRef<HTMLInputElement>(null);
   const passwordInput = useRef<HTMLInputElement>(null);
@@ -64,6 +69,7 @@ export function LoginApp({ onAuthenticated, probing = false }: LoginAppProps) {
   const [password, setPassword] = useState('');
   const [phase, setPhase] = useState<LoginPhase>('ready');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(initialNotice ?? null);
   const [showFallback, setShowFallback] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
@@ -85,6 +91,17 @@ export function LoginApp({ onAuthenticated, probing = false }: LoginAppProps) {
     const frame = window.requestAnimationFrame(() => passwordInput.current?.focus());
     return () => window.cancelAnimationFrame(frame);
   }, [probing]);
+
+  useEffect(() => {
+    setNotice(initialNotice ?? null);
+
+    if (!initialNotice) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setNotice(null), 7_000);
+    return () => window.clearTimeout(timeout);
+  }, [initialNotice]);
 
   const updateCapsLock = (event: JSX.TargetedKeyboardEvent<HTMLInputElement>) => {
     setCapsLock(event.getModifierState?.('CapsLock') ?? false);
@@ -141,6 +158,18 @@ export function LoginApp({ onAuthenticated, probing = false }: LoginAppProps) {
 
   return (
     <main class="ssh-login-page" data-theme={theme}>
+      {notice ? (
+        <div
+          aria-atomic="true"
+          aria-live="assertive"
+          class="ssh-login-toast"
+          role="alert"
+        >
+          <ShieldIcon aria-hidden="true" />
+          <span>{notice}</span>
+        </div>
+      ) : null}
+
       <section class="ssh-login-brand" aria-labelledby="ssh-login-brand-title">
         <div class="ssh-login-brand-orb ssh-login-brand-orb-one" aria-hidden="true" />
         <div class="ssh-login-brand-orb ssh-login-brand-orb-two" aria-hidden="true" />
