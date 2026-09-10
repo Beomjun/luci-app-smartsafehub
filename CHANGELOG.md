@@ -4,6 +4,19 @@ SmartSafeHub LuCI 애플리케이션의 정식 배포 변경 사항을 기록합
 
 버전은 애플리케이션 버전과 OpenWrt 패키지 릴리스를 함께 표기합니다. 예를 들어 `0.2.0-r1`은 애플리케이션 버전 `0.2.0`, 패키지 릴리스 `1`을 의미합니다.
 
+## [0.2.12-r8] - 2026-09-10
+
+### 수정
+
+- 세션 만료 후 SmartSafeHub RPC가 `Access denied`를 반환할 때 별도의 LuCI 세션 probe 결과를 기다리지 않고 해당 bootstrap 세션을 즉시 만료 처리하도록 변경했습니다. 보호된 session endpoint가 오래된 세션 ID를 다시 반환하는 경우 인증된 화면과 로그인 화면 사이를 반복하던 복구 루프를 제거했습니다.
+- 소프트웨어 업데이트 화면이 `updates.state`의 설치 버전과 현재 asset version이 다르다는 이유만으로 매 페이지 로드마다 `window.location.reload()`를 실행하던 무한 새로고침 문제를 수정했습니다. 수동 APK 설치 뒤 남은 오래된 update state나 LuCI template cache로 버전 값이 일시적으로 어긋나도 reload하지 않고, 현재 탭에서 `lastInstallAt`이 새 값으로 바뀌어 실제 updater 설치 완료를 관찰한 경우에만 한 번 새로고침합니다.
+- 세션 만료 이벤트는 기존처럼 로그인 화면과 만료 안내 toast로 즉시 전환하며, 이미 시작된 이전 화면의 polling은 App unmount와 함께 정리됩니다.
+
+### 테스트
+
+- RPC `Access denied`가 추가 session probe 없이 즉시 `SESSION_EXPIRED`로 전환되는지 contract를 보강했습니다.
+- 초기 로드의 단순 asset/version mismatch는 reload하지 않고, 새 `lastInstallAt`을 관찰한 updater 완료 시점에만 한 번 reload하는 contract를 추가했습니다.
+
 ## [0.2.12-r7] - 2026-09-10
 
 ### 수정

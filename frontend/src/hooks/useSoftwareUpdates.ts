@@ -40,18 +40,33 @@ export function useSoftwareUpdates(active = true) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const reloadRequested = useRef(false);
+  const lastObservedInstallAt = useRef<number | null | undefined>(undefined);
 
   useEffect(() => {
     if (reloadRequested.current) {
       return;
     }
 
-    const phase = resource.data?.phase;
-    if (phase !== 'idle') {
+    const lastInstallAt = resource.data?.lastInstallAt ?? null;
+    const previousLastInstallAt = lastObservedInstallAt.current;
+    lastObservedInstallAt.current = lastInstallAt;
+
+    // Version information in /tmp/smartsafehub-updates.state can be stale after
+    // a manual APK install or while LuCI is still serving a cached entry
+    // template. A raw version mismatch must therefore never reload by itself.
+    // Reload only when this mounted page observes a newly completed updater
+    // installation. After the reload, the new mount treats that timestamp as
+    // its baseline and cannot enter a reload loop.
+    if (
+      previousLastInstallAt === undefined ||
+      lastInstallAt === null ||
+      lastInstallAt === previousLastInstallAt ||
+      resource.data?.phase !== 'idle'
+    ) {
       return;
     }
 
-    const installedVersion = resource.data?.packages.find(
+    const installedVersion = resource.data.packages.find(
       (item) => item.name === UPDATE_PACKAGE,
     )?.installedVersion;
     const loadedAssetVersion = window.__SMARTHUB_BOOTSTRAP__?.assetVersion;

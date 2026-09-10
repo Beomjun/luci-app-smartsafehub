@@ -1,6 +1,4 @@
-import { probeLuciSession } from '../auth/session';
 import {
-  hasNotifiedSessionExpired,
   notifySessionExpired,
   SESSION_EXPIRED_MESSAGE,
 } from '../auth/sessionEvents';
@@ -88,68 +86,20 @@ function isAccessDenied(error: RpcError): boolean {
   );
 }
 
-let pendingSessionProbe: {
-  sessionId: string;
-  promise: Promise<string | null>;
-} | null = null;
-
 function currentSessionMatches(sessionId: string): boolean {
   return window.__SMARTHUB_BOOTSTRAP__?.sessionId === sessionId;
 }
 
-function probeCurrentSession(sessionId: string): Promise<string | null> {
-  if (pendingSessionProbe?.sessionId === sessionId) {
-    return pendingSessionProbe.promise;
-  }
-
-  const promise = probeLuciSession().finally(() => {
-    if (pendingSessionProbe?.promise === promise) {
-      pendingSessionProbe = null;
-    }
-  });
-
-  pendingSessionProbe = { sessionId, promise };
-  return promise;
-}
-
-async function sessionExpiryError(
-  error: RpcError,
-  sessionId: string,
-): Promise<RpcError> {
-  if (!isAccessDenied(error)) {
+function sessionExpiryError(error: RpcError, sessionId: string): RpcError {
+  if (!isAccessDenied(error) || !currentSessionMatches(sessionId)) {
     return error;
   }
 
-  if (!currentSessionMatches(sessionId)) {
-    return error;
-  }
-
-  if (hasNotifiedSessionExpired(sessionId)) {
-    return new RpcError('SESSION_EXPIRED', SESSION_EXPIRED_MESSAGE);
-  }
-
-  let activeSessionId: string | null;
-
-  try {
-    activeSessionId = await probeCurrentSession(sessionId);
-  } catch {
-    // Do not mistake a temporary session-probe/network failure for expiry.
-    return error;
-  }
-
-  // Another login may have completed while this request was probing. Ignore
-  // stale failures from the previous bootstrap session in that case.
-  if (!currentSessionMatches(sessionId)) {
-    return error;
-  }
-
-  // A session probe must confirm the exact bootstrap session. Merely receiving
-  // any valid LuCI session id is insufficient: LuCI may have replaced the
-  // cookie/session while in-flight RPC requests still carry the stale id.
-  if (activeSessionId === sessionId) {
-    return error;
-  }
-
+  // Access denied from SmartSafeHub's authenticated ubus endpoint means the
+  // bootstrap session can no longer be used by this application. Do not probe
+  // another LuCI endpoint here: that request may still echo a stale auth
+  // session and keep the application mounted in an Access denied/reload loop.
+  // Rendering the login screen is the only deterministic recovery path.
   notifySessionExpired(sessionId);
   return new RpcError('SESSION_EXPIRED', SESSION_EXPIRED_MESSAGE);
 }
@@ -259,7 +209,7 @@ export async function callRpc<T>(
     }
 
     if (error instanceof RpcError) {
-      throw await sessionExpiryError(error, bootstrap.sessionId);
+      throw sessionExpiryError(error, bootstrap.sessionId);
     }
 
     throw new RpcError(
@@ -281,7 +231,7 @@ export async function callApi<T>(
   const response = await callRpc<ApiResponse<T>>(object, method, params, options);
 
   if (!response.ok) {
-    throw await sessionExpiryError(
+    throw sessionExpiryError(
       new RpcError(response.error.code, response.error.message),
       bootstrap.sessionId,
     );

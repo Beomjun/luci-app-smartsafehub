@@ -165,6 +165,14 @@ grep -Fq 'installedVersion !== loadedAssetVersion' "$UPDATES_HOOK" || \
 	fail 'completed self-updates must detect when the browser is running stale assets'
 grep -Fq 'window.location.reload();' "$UPDATES_HOOK" || \
 	fail 'self-update completion must reload the SmartSafeHub entry once for fresh assets'
+grep -Fq 'const lastObservedInstallAt = useRef<number | null | undefined>(undefined);' "$UPDATES_HOOK" || \
+	fail 'self-update reload must track the install completion timestamp per mounted page'
+grep -Fq 'previousLastInstallAt === undefined' "$UPDATES_HOOK" || \
+	fail 'initial update state must establish a baseline instead of reloading on a version mismatch'
+grep -Fq 'lastInstallAt === previousLastInstallAt' "$UPDATES_HOOK" || \
+	fail 'unchanged install timestamps must not trigger another automatic reload'
+grep -Fq "resource.data?.phase !== 'idle'" "$UPDATES_HOOK" || \
+	fail 'asset reload must only happen after the updater returns to idle'
 
 # Update and device/system management are separate product pages.
 grep -Fq '<SoftwareUpdatesCard' "$UPDATE_PAGE" || \

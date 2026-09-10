@@ -69,20 +69,14 @@ grep -Fq '/^(?:access|permission)\s+denied\.?$/i.test(sessionId)' "$SESSION" || 
 grep -Fq "export const SESSION_EXPIRED_EVENT = 'smartsafehub:session-expired';" "$SESSION_EVENTS" || \
 	fail 'session expiry must use one shared application event'
 grep -Fq 'notifySessionExpired(sessionId);' "$RPC" || \
-	fail 'RPC access denial must notify the application after session expiry is confirmed'
-grep -Fq 'activeSessionId = await probeCurrentSession(sessionId);' "$RPC" || \
-	fail 'RPC access denial must confirm the LuCI session before treating it as expired'
+	fail 'RPC access denial must notify the application immediately'
 grep -Fq "new RpcError('SESSION_EXPIRED', SESSION_EXPIRED_MESSAGE)" "$RPC" || \
-	fail 'confirmed expiry must become a dedicated session-expired RPC error'
-
-grep -Fq 'activeSessionId === sessionId' "$RPC" || \
-	fail 'session expiry probe must validate the exact bootstrap session id'
-grep -Fq 'pendingSessionProbe' "$RPC" || \
-	fail 'concurrent access-denied requests must share one session probe'
+	fail 'access denial must become a dedicated session-expired RPC error'
 grep -Fq 'currentSessionMatches(sessionId)' "$RPC" || \
 	fail 'stale RPC failures must not expire a newly authenticated session'
-grep -Fq 'hasNotifiedSessionExpired(sessionId)' "$RPC" || \
-	fail 'already-expired sessions must not start repeated session probes'
+if grep -Fq 'probeCurrentSession' "$RPC" || grep -Fq 'probeLuciSession' "$RPC"; then
+	fail 'RPC access-denied recovery must not probe another LuCI session endpoint'
+fi
 grep -Fq 'window.addEventListener(SESSION_EXPIRED_EVENT' "$MAIN" || \
 	fail 'public entry must listen for session expiry globally'
 grep -Fq 'renderLogin(host, mountPoint, SESSION_EXPIRED_MESSAGE);' "$MAIN" || \
