@@ -1,5 +1,6 @@
 import { probeLuciSession } from '../auth/session';
 import {
+  hasNotifiedSessionExpired,
   notifySessionExpired,
   SESSION_EXPIRED_MESSAGE,
 } from '../auth/sessionEvents';
@@ -87,6 +88,30 @@ function isAccessDenied(error: RpcError): boolean {
   );
 }
 
+let pendingSessionProbe: {
+  sessionId: string;
+  promise: Promise<string | null>;
+} | null = null;
+
+function currentSessionMatches(sessionId: string): boolean {
+  return window.__SMARTHUB_BOOTSTRAP__?.sessionId === sessionId;
+}
+
+function probeCurrentSession(sessionId: string): Promise<string | null> {
+  if (pendingSessionProbe?.sessionId === sessionId) {
+    return pendingSessionProbe.promise;
+  }
+
+  const promise = probeLuciSession().finally(() => {
+    if (pendingSessionProbe?.promise === promise) {
+      pendingSessionProbe = null;
+    }
+  });
+
+  pendingSessionProbe = { sessionId, promise };
+  return promise;
+}
+
 async function sessionExpiryError(
   error: RpcError,
   sessionId: string,
@@ -95,12 +120,33 @@ async function sessionExpiryError(
     return error;
   }
 
+  if (!currentSessionMatches(sessionId)) {
+    return error;
+  }
+
+  if (hasNotifiedSessionExpired(sessionId)) {
+    return new RpcError('SESSION_EXPIRED', SESSION_EXPIRED_MESSAGE);
+  }
+
+  let activeSessionId: string | null;
+
   try {
-    if (await probeLuciSession()) {
-      return error;
-    }
+    activeSessionId = await probeCurrentSession(sessionId);
   } catch {
     // Do not mistake a temporary session-probe/network failure for expiry.
+    return error;
+  }
+
+  // Another login may have completed while this request was probing. Ignore
+  // stale failures from the previous bootstrap session in that case.
+  if (!currentSessionMatches(sessionId)) {
+    return error;
+  }
+
+  // A session probe must confirm the exact bootstrap session. Merely receiving
+  // any valid LuCI session id is insufficient: LuCI may have replaced the
+  // cookie/session while in-flight RPC requests still carry the stale id.
+  if (activeSessionId === sessionId) {
     return error;
   }
 

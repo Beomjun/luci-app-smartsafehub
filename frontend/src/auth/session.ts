@@ -31,6 +31,7 @@ async function sessionIdFromResponse(response: Response): Promise<string | null>
 
   if (
     response.redirected ||
+    /^(?:access|permission)\s+denied\.?$/i.test(sessionId) ||
     /^<!doctype\s+html/i.test(sessionId) ||
     /<html(?:\s|>)/i.test(sessionId)
   ) {

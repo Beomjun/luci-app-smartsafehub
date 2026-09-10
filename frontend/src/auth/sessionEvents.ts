@@ -8,6 +8,10 @@ export function markSessionActive(): void {
   lastExpiredSessionId = null;
 }
 
+export function hasNotifiedSessionExpired(sessionId: string): boolean {
+  return lastExpiredSessionId === sessionId;
+}
+
 export function notifySessionExpired(sessionId: string): void {
   if (lastExpiredSessionId === sessionId) {
     return;

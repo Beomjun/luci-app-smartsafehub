@@ -4,6 +4,19 @@ SmartSafeHub LuCI 애플리케이션의 정식 배포 변경 사항을 기록합
 
 버전은 애플리케이션 버전과 OpenWrt 패키지 릴리스를 함께 표기합니다. 예를 들어 `0.2.0-r1`은 애플리케이션 버전 `0.2.0`, 패키지 릴리스 `1`을 의미합니다.
 
+## [0.2.12-r7] - 2026-09-10
+
+### 수정
+
+- 세션 만료 후 RPC가 `Access denied`를 반환할 때 세션 확인 API가 `Access denied` 일반 텍스트를 돌려주는 경우 이를 잘못된 응답으로 처리해 기존 화면의 polling이 계속되던 무한 반복 문제를 수정했습니다. 해당 응답은 이제 즉시 비로그인 상태로 판정합니다.
+- 세션 확인 API가 다른 새 세션 ID를 반환해도 기존 코드가 단순히 “세션 있음”으로 판단하면서 오래된 bootstrap session ID로 RPC를 계속 재시도할 수 있던 문제도 수정했습니다. 이제 세션 확인 결과가 현재 RPC에 사용한 session ID와 정확히 일치할 때만 세션이 유효한 것으로 판단합니다.
+- 동시에 여러 RPC가 `Access denied`를 반환하는 경우 세션 확인 요청을 하나로 합쳐 불필요한 중복 probe를 방지하고, 이미 만료 처리가 시작된 세션은 추가 probe 없이 즉시 `SESSION_EXPIRED`로 처리합니다.
+- 재로그인이 완료된 뒤 이전 세션에서 늦게 도착한 실패 응답이 새 로그인 세션을 다시 만료 처리하지 않도록 현재 bootstrap session ID를 재확인하는 race-condition 방어 로직을 추가했습니다.
+
+### 테스트
+
+- Access denied 처리 시 probe된 session ID와 bootstrap session ID를 정확히 비교하는지, 동시 probe deduplication과 stale-session race guard가 유지되는지 로그인 UI contract를 보강했습니다.
+
 ## [0.2.12-r6] - 2026-09-10
 
 ### 수정
