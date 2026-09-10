@@ -4,6 +4,17 @@ SmartSafeHub LuCI 애플리케이션의 정식 배포 변경 사항을 기록합
 
 버전은 애플리케이션 버전과 OpenWrt 패키지 릴리스를 함께 표기합니다. 예를 들어 `0.2.0-r1`은 애플리케이션 버전 `0.2.0`, 패키지 릴리스 `1`을 의미합니다.
 
+## [0.2.12-r5] - 2026-09-10
+
+### 수정
+
+- 모바일 공통 터치 영역 규칙인 `.ssh-app button { min-height: 44px; }`가 SafeShield 통계 및 업데이트 설정의 switch track 높이까지 44px로 강제해 작은 화면에서 토글이 세로로 늘어나던 문제를 수정했습니다. switch 전용 selector의 우선순위를 높이고 width/height의 최소·최대값을 모두 고정해 화면 크기와 관계없이 48x28 geometry를 유지합니다.
+- switch thumb도 20x20의 최소·최대 크기를 모두 고정해 flex, responsive 스타일 또는 브라우저 기본 button 스타일의 영향을 받아 원형이 찌그러지지 않도록 보강했습니다.
+
+### 테스트
+
+- 모바일 `button` 최소 높이 규칙보다 switch 전용 geometry selector가 우선하도록 CSS contract를 보강하고, track/thumb에 최대 크기 제한까지 존재하는지 검증합니다.
+
 ## [0.2.12-r4] - 2026-09-10
 
 ### 수정

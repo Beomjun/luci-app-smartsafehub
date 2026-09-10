@@ -184,21 +184,29 @@
   background: #38bdf8;
 }
 
-/* Keep compact switch controls geometrically stable on narrow screens and
- * keep the thumb white even when the dark-theme utility remap is active. */
-.ssh-switch-control {
+/* Keep compact switch controls geometrically stable on every viewport.
+ * The mobile touch-target rule uses `.ssh-app button { min-height: 44px; }`,
+ * so the switch needs a more specific selector to keep its visual track at
+ * 48x28 instead of being stretched vertically on narrow screens. */
+.ssh-app button.ssh-switch-control {
   width: 3rem;
   min-width: 3rem;
+  max-width: 3rem;
   height: 1.75rem;
   min-height: 1.75rem;
+  max-height: 1.75rem;
   flex: 0 0 3rem;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .ssh-switch-thumb {
   width: 1.25rem;
   min-width: 1.25rem;
+  max-width: 1.25rem;
   height: 1.25rem;
   min-height: 1.25rem;
+  max-height: 1.25rem;
   aspect-ratio: 1 / 1;
   box-sizing: border-box;
   border-radius: 9999px;
