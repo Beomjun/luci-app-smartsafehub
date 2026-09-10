@@ -4,6 +4,18 @@ SmartSafeHub LuCI 애플리케이션의 정식 배포 변경 사항을 기록합
 
 버전은 애플리케이션 버전과 OpenWrt 패키지 릴리스를 함께 표기합니다. 예를 들어 `0.2.0-r1`은 애플리케이션 버전 `0.2.0`, 패키지 릴리스 `1`을 의미합니다.
 
+## [0.2.12-r12] - 2026-09-10
+
+### 수정
+
+- 로컬 APK로 설치된 SafeShield가 `/etc/apk/world`의 `><Q...` identity hash로 고정된 경우 SmartSafeHub 업데이트의 의존성 해결이 실패하던 문제를 수정했습니다. SmartSafeHub 설치 전에 SafeShield의 identity pin만 선택적으로 정상화하여 최신 저장소 버전으로 전환할 수 있게 했습니다.
+- 기존 SmartSafeHub 자체 identity pin 처리와 동일하게 `apk upgrade --available` 같은 전체 시스템 업그레이드 경로는 사용하지 않고, SmartSafeHub가 관리하는 `safeshield`와 `luci-app-smartsafehub`만 대상으로 처리합니다.
+
+### 테스트
+
+- SafeShield가 identity pin된 상태에서 최신 SmartSafeHub가 더 새로운 SafeShield를 요구하는 실제 실패 조건을 회귀 테스트로 추가했습니다. pin이 제거되고 SafeShield 의존성이 갱신된 뒤 SmartSafeHub 설치가 완료되는지 검증합니다.
+- SafeShield identity pin 해제가 실패하면 `UPDATES_INSTALL_FAILED`로 남고 SmartSafeHub 설치를 진행하지 않는지, 다른 패키지의 world constraint 및 identity pin은 변경되지 않는지 검증합니다.
+
 ## [0.2.12-r11] - 2026-09-10
 
 ### 테스트

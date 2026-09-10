@@ -48,6 +48,8 @@ grep -Fq "const UPDATE_PACKAGE = 'luci-app-smartsafehub';" "$UPDATES_MODULE" || 
 	fail 'ucode updater target must be luci-app-smartsafehub'
 grep -Fq 'UPDATE_PACKAGE="luci-app-smartsafehub"' "$UPDATER" || \
 	fail 'shell updater target must be luci-app-smartsafehub'
+grep -Fq 'SAFESHIELD_PACKAGE="safeshield"' "$UPDATER" || \
+	fail 'shell updater must manage SafeShield dependency identity pins'
 grep -Fq "const RELEASE_NOTES_FILE = '/tmp/smartsafehub-release-notes.json';" "$UPDATES_MODULE" || \
 	fail 'rpc update status must read the release-note bundle cache'
 grep -Fq 'state.releaseNotes = release_notes.notes;' "$UPDATES_MODULE" || \

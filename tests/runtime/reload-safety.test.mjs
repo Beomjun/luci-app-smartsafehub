@@ -128,7 +128,7 @@ const runReloadEffect = new Function(
 function updateStatus({
   phase = 'idle',
   lastInstallAt = 100,
-  installedVersion = '0.2.12-r11',
+  installedVersion = '0.2.12-r12',
   includePackage = true,
 } = {}) {
   return {
@@ -254,7 +254,7 @@ function createHarness({ assetVersion = '0.2.12-r10' } = {}) {
   missingPackage.observe(updateStatus({ lastInstallAt: 600, includePackage: false }));
   assert.equal(missingPackage.reloadCount, 0);
 
-  const matchingAssets = createHarness({ assetVersion: '0.2.12-r11' });
+  const matchingAssets = createHarness({ assetVersion: '0.2.12-r12' });
   matchingAssets.observe(updateStatus({ lastInstallAt: 500 }));
   matchingAssets.observe(updateStatus({ lastInstallAt: 600 }));
   assert.equal(matchingAssets.reloadCount, 0);

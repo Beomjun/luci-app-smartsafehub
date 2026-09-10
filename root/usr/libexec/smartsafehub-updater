@@ -17,6 +17,7 @@ UCI_BIN="${SMARTSAFEHUB_UPDATER_UCI_BIN:-uci}"
 RPCD_INIT="${SMARTSAFEHUB_UPDATER_RPCD_INIT:-/etc/init.d/rpcd}"
 LUCI_INDEX_CACHE="${SMARTSAFEHUB_UPDATER_LUCI_INDEX_CACHE:-/tmp/luci-indexcache}"
 UPDATE_PACKAGE="luci-app-smartsafehub"
+SAFESHIELD_PACKAGE="safeshield"
 FEED_NAME="smartsafehub"
 DEFAULT_REPOSITORY_HOST="repo.smartsafehub.com"
 RELEASE_NOTE_TIMEOUT_S=10
@@ -464,37 +465,63 @@ available_upgrade_version() {
 	esac
 }
 
-update_package_has_identity_pin() {
-	local line
+package_has_identity_pin() {
+	local package="$1" line
+	[ -n "$package" ] || return 1
 	[ -f "$APK_WORLD_FILE" ] || return 1
 
 	while IFS= read -r line || [ -n "$line" ]; do
 		case "$line" in
-			"$UPDATE_PACKAGE"'><Q'*) return 0 ;;
+			"$package"'><Q'*) return 0 ;;
 		esac
 	done < "$APK_WORLD_FILE"
 
 	return 1
 }
 
+normalize_package_identity_pin() {
+	local package="$1" label="$2" log_file="$3"
+
+	package_has_identity_pin "$package" || return 0
+
+	log_message "normalizing local APK identity pin for $package"
+	if ! "$APK_BIN" add --upgrade --latest "$package" >> "$log_file" 2>&1; then
+		return 1
+	fi
+
+	if package_has_identity_pin "$package"; then
+		printf '%s\n' \
+			"${label} 패키지의 로컬 APK identity pin을 해제하지 못했습니다." >> "$log_file"
+		return 1
+	fi
+	return 0
+}
+
 upgrade_update_package() {
-	local log_file="$1"
+	local log_file="$1" update_package_was_pinned=0
+	: > "$log_file"
 
-	if update_package_has_identity_pin; then
-		log_message "normalizing local APK identity pin for $UPDATE_PACKAGE"
-		if ! "$APK_BIN" add --upgrade --latest "$UPDATE_PACKAGE" > "$log_file" 2>&1; then
-			return 1
-		fi
+	# SafeShield is a managed dependency of SmartSafeHub. A local APK install can
+	# leave its exact identity pinned in /etc/apk/world, which prevents apk from
+	# resolving the SafeShield version required by a newer SmartSafeHub package.
+	if ! normalize_package_identity_pin "$SAFESHIELD_PACKAGE" 'SafeShield' "$log_file"; then
+		return 1
+	fi
 
-		if update_package_has_identity_pin; then
-			printf '%s\n' \
-				"SmartSafeHub 패키지의 로컬 APK identity pin을 해제하지 못했습니다." >> "$log_file"
-			return 1
-		fi
+	if package_has_identity_pin "$UPDATE_PACKAGE"; then
+		update_package_was_pinned=1
+	fi
+	if ! normalize_package_identity_pin "$UPDATE_PACKAGE" 'SmartSafeHub' "$log_file"; then
+		return 1
+	fi
+
+	# Normalizing the SmartSafeHub identity pin already installs the latest
+	# repository version, so do not invoke apk a second time in that case.
+	if [ "$update_package_was_pinned" -eq 1 ]; then
 		return 0
 	fi
 
-	if ! "$APK_BIN" upgrade "$UPDATE_PACKAGE" > "$log_file" 2>&1; then
+	if ! "$APK_BIN" upgrade "$UPDATE_PACKAGE" >> "$log_file" 2>&1; then
 		return 1
 	fi
 	return 0
