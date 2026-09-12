@@ -4,6 +4,19 @@ SmartSafeHub LuCI 애플리케이션의 정식 배포 변경 사항을 기록합
 
 버전은 애플리케이션 버전과 OpenWrt 패키지 릴리스를 함께 표기합니다. 예를 들어 `0.2.0-r1`은 애플리케이션 버전 `0.2.0`, 패키지 릴리스 `1`을 의미합니다.
 
+## [0.2.13-r5] - 2026-09-12
+
+### 수정
+
+- 로컬 APK 설치로 `/etc/apk/world`에 남은 SmartSafeHub·SafeShield identity pin을 해제할 때 `apk add --upgrade --latest`를 실행하던 공격적인 정규화 경로를 제거했습니다. 이제 해당 두 패키지의 정확한 identity hash 항목만 일반 패키지 항목으로 직접 정규화합니다.
+- identity pin 정규화 뒤에는 항상 `apk upgrade luci-app-smartsafehub` 한 번만 실행하도록 업데이트 경로를 단순화했습니다. SafeShield가 실제로 더 높은 최소 버전을 요구하는 경우에만 APK dependency resolver가 필요한 범위에서 함께 갱신합니다.
+- SmartSafeHub 업데이트 때문에 관계없는 OpenWrt 패키지나 현재 펌웨어와 ABI가 다른 `kmod-*` 후보까지 불필요하게 해석되는 위험을 줄였습니다.
+
+### 테스트
+
+- SmartSafeHub와 SafeShield가 각각 로컬 APK identity pin 상태여도 `apk add --upgrade --latest`를 호출하지 않고 world 항목만 정규화한 뒤 target-only 업그레이드가 수행되는지 검증합니다.
+- unrelated package의 버전 constraint와 identity pin이 그대로 보존되는지, updater 소스에 광범위한 `--latest`/`--available` 업그레이드 경로가 다시 추가되지 않는지 회귀 테스트를 강화했습니다.
+
 ## [0.2.13-r4] - 2026-09-12
 
 ### 개선

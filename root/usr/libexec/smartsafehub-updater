@@ -480,12 +480,31 @@ package_has_identity_pin() {
 }
 
 normalize_package_identity_pin() {
-	local package="$1" label="$2" log_file="$3"
+	local package="$1" label="$2" log_file="$3" tmp_file
 
 	package_has_identity_pin "$package" || return 0
 
-	log_message "normalizing local APK identity pin for $package"
-	if ! "$APK_BIN" add --upgrade --latest "$package" >> "$log_file" 2>&1; then
+	# Installing a local APK can leave a repository identity hash in /etc/apk/world.
+	# Do not use `apk add --upgrade --latest` to normalize it: that command can
+	# broaden dependency resolution into unrelated OpenWrt packages and kernel
+	# modules. Rewrite only the exact SmartSafeHub-managed world entry instead;
+	# the targeted apk upgrade below remains responsible for dependency changes.
+	tmp_file="${APK_WORLD_FILE}.smartsafehub.$$"
+	log_message "normalizing local APK identity pin for $package without package upgrade"
+	if ! awk -v package="$package" '
+		index($0, package "><Q") == 1 { print package; next }
+		{ print }
+	' "$APK_WORLD_FILE" > "$tmp_file"; then
+		rm -f "$tmp_file"
+		printf '%s\n' \
+			"${label} 패키지의 로컬 APK identity pin 정보를 읽지 못했습니다." >> "$log_file"
+		return 1
+	fi
+
+	if ! mv -f "$tmp_file" "$APK_WORLD_FILE"; then
+		rm -f "$tmp_file"
+		printf '%s\n' \
+			"${label} 패키지의 로컬 APK identity pin을 안전하게 해제하지 못했습니다." >> "$log_file"
 		return 1
 	fi
 
@@ -498,27 +517,18 @@ normalize_package_identity_pin() {
 }
 
 upgrade_update_package() {
-	local log_file="$1" update_package_was_pinned=0
+	local log_file="$1"
 	: > "$log_file"
 
-	# SafeShield is a managed dependency of SmartSafeHub. A local APK install can
-	# leave its exact identity pinned in /etc/apk/world, which prevents apk from
-	# resolving the SafeShield version required by a newer SmartSafeHub package.
+	# Local APK installs can pin SmartSafeHub and its managed SafeShield dependency
+	# to repository identity hashes. Normalize only those world entries, then let a
+	# single targeted SmartSafeHub upgrade resolve the dependency version it truly
+	# requires. Never run a broad `apk add --upgrade --latest` normalization step.
 	if ! normalize_package_identity_pin "$SAFESHIELD_PACKAGE" 'SafeShield' "$log_file"; then
 		return 1
 	fi
-
-	if package_has_identity_pin "$UPDATE_PACKAGE"; then
-		update_package_was_pinned=1
-	fi
 	if ! normalize_package_identity_pin "$UPDATE_PACKAGE" 'SmartSafeHub' "$log_file"; then
 		return 1
-	fi
-
-	# Normalizing the SmartSafeHub identity pin already installs the latest
-	# repository version, so do not invoke apk a second time in that case.
-	if [ "$update_package_was_pinned" -eq 1 ]; then
-		return 0
 	fi
 
 	if ! "$APK_BIN" upgrade "$UPDATE_PACKAGE" >> "$log_file" 2>&1; then

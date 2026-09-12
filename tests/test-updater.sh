@@ -326,8 +326,9 @@ last_install_after_noop="$(awk -F '\t' '$1 == "last_install_at" { print $2 }' "$
 [ "$last_install_after_noop" = "$last_install_before_noop" ] || fail 'last_install_at must not change after an apk no-op'
 
 # A local APK file install pins the exact package identity in /etc/apk/world. The updater must
-# normalize only the SmartSafeHub constraint without using apk upgrade --available, which would
-# reset versioned world constraints globally and can update unrelated OpenWrt packages.
+# rewrite only the managed world entry, then run one targeted SmartSafeHub upgrade. It must not
+# invoke apk add --upgrade --latest, because that can broaden dependency resolution into
+# unrelated OpenWrt packages and kernel modules.
 printf '%s\n' '0.2.1-r1' > "$TMP/pkg/luci-app-smartsafehub.installed"
 printf '%s\n' '0.0.0' > "$TMP/pkg/safeshield.installed"
 cat > "$TMP/world" <<'EOF2'
@@ -337,7 +338,8 @@ dropbear><Q1unrelatedLocalIdentityHash=
 EOF2
 "$UPDATER" check
 "$UPDATER" install
-assert_contains "$TMP/apk.log" 'add --upgrade --latest luci-app-smartsafehub'
+assert_contains "$TMP/apk.log" 'upgrade luci-app-smartsafehub'
+assert_not_contains "$TMP/apk.log" 'add --upgrade --latest'
 assert_not_contains "$TMP/apk.log" '--available'
 assert_contains "$TMP/world" 'busybox=1.37.0-r6'
 assert_contains "$TMP/world" 'luci-app-smartsafehub'
@@ -346,8 +348,9 @@ assert_contains "$TMP/world" 'dropbear><Q1unrelatedLocalIdentityHash='
 [ "$(cat "$TMP/pkg/luci-app-smartsafehub.installed")" = "$RELEASE_VERSION" ] || fail 'identity-pinned SmartSafeHub package did not upgrade to the repository version'
 assert_contains "$TMP/updates.state" "package${TAB}luci-app-smartsafehub${TAB}${RELEASE_VERSION}${TAB}${TAB}0"
 
-# SafeShield is a managed dependency. Its local APK identity pin must be normalized before
-# upgrading SmartSafeHub, otherwise apk cannot satisfy a newer SafeShield dependency.
+# SafeShield is a managed dependency. Normalize its local APK identity pin in world without
+# directly upgrading SafeShield; the targeted SmartSafeHub transaction may update SafeShield
+# only when its package dependency actually requires a newer version.
 printf '%s\n' '0.2.1-r1' > "$TMP/pkg/luci-app-smartsafehub.installed"
 printf '%s\n' '0.0.0' > "$TMP/pkg/safeshield.installed"
 cat > "$TMP/world" <<'EOF2'
@@ -359,51 +362,47 @@ EOF2
 "$UPDATER" check
 "$UPDATER" install
 assert_contains "$TMP/apk.log" 'upgrade luci-app-smartsafehub'
+assert_not_contains "$TMP/apk.log" ' safeshield'
+assert_not_contains "$TMP/apk.log" 'add --upgrade --latest'
 assert_contains "$TMP/world" 'busybox=1.37.0-r6'
 assert_contains "$TMP/world" 'safeshield'
 assert_not_contains "$TMP/world" 'safeshield><Q'
 assert_contains "$TMP/world" 'dropbear><Q1unrelatedLocalIdentityHash='
-[ "$(cat "$TMP/pkg/safeshield.installed")" = "$SAFESHIELD_MIN_VERSION" ] || fail 'identity-pinned SafeShield dependency did not upgrade to the repository version'
+[ "$(cat "$TMP/pkg/safeshield.installed")" = "$SAFESHIELD_MIN_VERSION" ] || fail 'targeted SmartSafeHub upgrade did not resolve the required SafeShield dependency'
 [ "$(cat "$TMP/pkg/luci-app-smartsafehub.installed")" = "$RELEASE_VERSION" ] || fail 'SmartSafeHub did not upgrade after normalizing the SafeShield identity pin'
 assert_contains "$TMP/updates.state" "package${TAB}luci-app-smartsafehub${TAB}${RELEASE_VERSION}${TAB}${TAB}0"
 
-# A SafeShield identity pin that remains after normalization must abort the SmartSafeHub
-# installation instead of falling through to apk upgrade and reporting a dependency error.
+# Both managed packages can be identity-pinned after local APK testing. Normalize both exact
+# entries while preserving unrelated version constraints and local identity pins.
 printf '%s\n' '0.2.1-r1' > "$TMP/pkg/luci-app-smartsafehub.installed"
 printf '%s\n' '0.0.0' > "$TMP/pkg/safeshield.installed"
 cat > "$TMP/world" <<'EOF2'
-luci-app-smartsafehub
-safeshield><Q1stuckSafeShieldIdentityHash=
+busybox=1.37.0-r6
+luci-app-smartsafehub><Q1mockHubIdentityHash=
+safeshield><Q1mockSafeShieldIdentityHash=
+dropbear><Q1unrelatedLocalIdentityHash=
 EOF2
 "$UPDATER" check
-if MOCK_APK_ADD_RETAIN_PIN=1 "$UPDATER" install; then
-	fail 'a SafeShield identity pin that remains must not be reported as a successful install'
-fi
-assert_contains "$TMP/updates.state" "phase${TAB}error"
-assert_contains "$TMP/updates.state" "error_code${TAB}UPDATES_INSTALL_FAILED"
-assert_contains "$TMP/world" 'safeshield><Q1stuckSafeShieldIdentityHash='
-[ "$(cat "$TMP/pkg/luci-app-smartsafehub.installed")" = '0.2.1-r1' ] || fail 'SmartSafeHub must not upgrade while the SafeShield identity pin remains'
-
-# Even if apk reports success, a pin that remains must keep the operation in an error state.
-printf '%s\n' '0.2.1-r1' > "$TMP/pkg/luci-app-smartsafehub.installed"
-printf '%s\n' 'luci-app-smartsafehub><Q1stuckLocalIdentityHash=' > "$TMP/world"
-"$UPDATER" check
-if MOCK_APK_ADD_NOOP=1 MOCK_APK_ADD_RETAIN_PIN=1 "$UPDATER" install; then
-	fail 'an identity pin that remains after apk add must not be reported as a successful install'
-fi
-assert_contains "$TMP/updates.state" "phase${TAB}error"
-assert_contains "$TMP/updates.state" "error_code${TAB}UPDATES_INSTALL_FAILED"
-assert_contains "$TMP/world" 'luci-app-smartsafehub><Q1stuckLocalIdentityHash='
+"$UPDATER" install
+assert_contains "$TMP/apk.log" 'upgrade luci-app-smartsafehub'
+assert_not_contains "$TMP/apk.log" 'add --upgrade --latest'
+assert_contains "$TMP/world" 'busybox=1.37.0-r6'
+assert_contains "$TMP/world" 'luci-app-smartsafehub'
+assert_contains "$TMP/world" 'safeshield'
+assert_not_contains "$TMP/world" 'luci-app-smartsafehub><Q'
+assert_not_contains "$TMP/world" 'safeshield><Q'
+assert_contains "$TMP/world" 'dropbear><Q1unrelatedLocalIdentityHash='
 
 printf '%s\n' 'luci-app-smartsafehub' > "$TMP/world"
 assert_contains "$UPDATER" 'APK_WORLD_FILE="${SMARTSAFEHUB_UPDATER_APK_WORLD_FILE:-/etc/apk/world}"'
 assert_contains "$UPDATER" 'SAFESHIELD_PACKAGE="safeshield"'
 assert_contains "$UPDATER" 'package_has_identity_pin() {'
 assert_contains "$UPDATER" 'normalize_package_identity_pin() {'
+assert_contains "$UPDATER" 'index($0, package "><Q") == 1 { print package; next }'
 assert_contains "$UPDATER" 'normalize_package_identity_pin "$SAFESHIELD_PACKAGE" '
 assert_contains "$UPDATER" 'normalize_package_identity_pin "$UPDATE_PACKAGE" '
-assert_contains "$UPDATER" '"$APK_BIN" add --upgrade --latest "$package"'
 assert_contains "$UPDATER" '"$APK_BIN" upgrade "$UPDATE_PACKAGE"'
+assert_not_contains "$UPDATER" '"$APK_BIN" add --upgrade --latest'
 assert_not_contains "$UPDATER" 'upgrade --available'
 
 assert_contains "$UPDATER" '( sleep 2; "$RPCD_INIT" reload >/dev/null 2>&1 ) &'
