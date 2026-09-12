@@ -150,16 +150,8 @@ export function useSafeShieldActions(
     setState({ action: 'refresh', error: null, message: null });
 
     try {
-      const result = await requestSafeShieldRefresh();
-      setState({
-        action: null,
-        error: null,
-        message: result.accepted
-          ? '차단 목록 갱신 작업을 시작했습니다.'
-          : result.reason === 'already_running'
-            ? '차단 목록을 이미 갱신하고 있습니다.'
-            : '차단 목록 갱신 요청을 처리했습니다.',
-      });
+      await requestSafeShieldRefresh();
+      setState({ action: null, error: null, message: null });
       scheduleRefreshes([700, 2500, 6000, 12000]);
     } catch (error) {
       setState({

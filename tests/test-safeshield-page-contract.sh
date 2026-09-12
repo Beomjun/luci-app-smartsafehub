@@ -8,13 +8,14 @@ PANEL="$ROOT_DIR/frontend/src/components/SafeShieldStatisticsPanel.tsx"
 NAVIGATION="$ROOT_DIR/frontend/src/components/ProductNavigation.tsx"
 ASSET_JS="$ROOT_DIR/root/www/luci-static/smartsafehub/app.js"
 ASSET_CSS="$ROOT_DIR/root/www/luci-static/smartsafehub/app.css"
+ACTIONS="$ROOT_DIR/frontend/src/hooks/useSafeShieldActions.ts"
 
 fail() {
 	echo "FAIL: $*" >&2
 	exit 1
 }
 
-for file in "$PAGE" "$PANEL" "$NAVIGATION" "$ASSET_JS" "$ASSET_CSS"; do
+for file in "$PAGE" "$PANEL" "$NAVIGATION" "$ACTIONS" "$ASSET_JS" "$ASSET_CSS"; do
 	[ -f "$file" ] || fail "missing SafeShield product UI source: ${file#$ROOT_DIR/}"
 done
 
@@ -147,5 +148,20 @@ grep -Fq '.ssh-app[data-theme=dark] .ssh-safeshield-refresh-donut-label{color:#5
 	fail 'dark-theme SafeShield loader step label must remain legible inside the ring'
 grep -Fq 'prefers-reduced-motion:reduce' "$ASSET_CSS" || \
 	fail 'checked-in app.css must preserve reduced-motion handling for the SafeShield round loader'
+
+if grep -Fq '차단 목록 갱신 작업을 시작했습니다.' "$ACTIONS" || \
+	grep -Fq '차단 목록을 이미 갱신하고 있습니다.' "$ACTIONS" || \
+	grep -Fq '차단 목록 갱신 요청을 처리했습니다.' "$ACTIONS"; then
+	fail 'SafeShield manual refresh must not leave transient progress feedback in the persistent action banner'
+fi
+grep -Fq 'await requestSafeShieldRefresh();' "$ACTIONS" || \
+	fail 'SafeShield manual refresh must still request the backend refresh operation'
+grep -Fq 'setState({ action: null, error: null, message: null });' "$ACTIONS" || \
+	fail 'SafeShield manual refresh must clear action feedback after the request is accepted'
+if grep -Fq '차단 목록 갱신 작업을 시작했습니다.' "$ASSET_JS" || \
+	grep -Fq '차단 목록을 이미 갱신하고 있습니다.' "$ASSET_JS" || \
+	grep -Fq '차단 목록 갱신 요청을 처리했습니다.' "$ASSET_JS"; then
+	fail 'checked-in app.js must not retain transient SafeShield manual refresh feedback'
+fi
 
 echo 'PASS: SafeShield product page hierarchy, refresh progress and switch contracts are present'
