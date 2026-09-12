@@ -1205,6 +1205,297 @@
 
 /* SafeShield refresh progress keeps internal stage names out of the product UI
  * and presents the six user-facing refresh phases as a compact donut. */
+/* SafeShield membership presentation. Keep the premium treatment compact so
+ * protection status remains the primary content of the summary card. */
+.ssh-safeshield-plan-badge {
+  position: relative;
+  display: inline-flex;
+  min-height: 1.75rem;
+  align-items: center;
+  gap: 0.4rem;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.ssh-safeshield-plan-badge[data-compact='true'] {
+  min-height: 1.6rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.68rem;
+}
+
+.ssh-safeshield-plan-badge-mark {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 1rem;
+  height: 1rem;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.ssh-safeshield-plan-badge[data-tier='free'] {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.ssh-safeshield-plan-badge[data-tier='free'] .ssh-safeshield-plan-badge-mark {
+  background: #cbd5e1;
+  color: #475569;
+}
+
+.ssh-safeshield-plan-badge[data-tier='pro'] {
+  border-color: #5eead4;
+  background: linear-gradient(135deg, #ecfeff 0%, #ccfbf1 55%, #99f6e4 100%);
+  color: #115e59;
+  box-shadow: 0 4px 12px rgb(13 148 136 / 0.12);
+}
+
+.ssh-safeshield-plan-badge[data-tier='pro'] .ssh-safeshield-plan-badge-mark {
+  background: #0f766e;
+  color: #fff;
+}
+
+.ssh-safeshield-plan-badge[data-tier='ultimate'] {
+  border-color: #f59e0b;
+  background: linear-gradient(135deg, #fff7ed 0%, #fef3c7 48%, #fde68a 100%);
+  color: #78350f;
+  box-shadow:
+    0 4px 14px rgb(217 119 6 / 0.16),
+    inset 0 1px 0 rgb(255 255 255 / 0.82);
+}
+
+.ssh-safeshield-plan-badge[data-tier='ultimate']::after {
+  position: absolute;
+  inset: -60% auto -60% -35%;
+  width: 38%;
+  content: '';
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.58), transparent);
+  transform: rotate(18deg);
+}
+
+.ssh-safeshield-plan-badge[data-tier='ultimate'] .ssh-safeshield-plan-badge-mark {
+  background: #b45309;
+  color: #fff7ed;
+}
+
+.ssh-safeshield-plan-badge[data-tier='paid'] {
+  border-color: #67e8f9;
+  background: linear-gradient(135deg, #ecfeff, #cffafe);
+  color: #155e75;
+  box-shadow: 0 4px 12px rgb(8 145 178 / 0.12);
+}
+
+.ssh-safeshield-plan-badge[data-tier='paid'] .ssh-safeshield-plan-badge-mark {
+  background: #0e7490;
+  color: #fff;
+}
+
+.ssh-safeshield-plan-caption {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.ssh-safeshield-upgrade-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 0.75rem;
+  border: 1px solid #99f6e4;
+  border-radius: 1rem;
+  background: linear-gradient(120deg, #f0fdfa 0%, #ecfeff 58%, #fff7ed 100%);
+  padding: 0.9rem 1rem;
+  box-shadow: 0 10px 24px rgb(15 118 110 / 0.08);
+}
+
+.ssh-safeshield-upgrade-mark {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: none;
+  place-items: center;
+  border-radius: 0.8rem;
+  background: linear-gradient(135deg, #0f766e, #0891b2);
+  color: #fff;
+  font-size: 1.05rem;
+  box-shadow: 0 8px 18px rgb(13 148 136 / 0.22);
+}
+
+.ssh-safeshield-upgrade-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 0.2rem;
+}
+
+.ssh-safeshield-upgrade-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  color: #0f766e;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ssh-safeshield-upgrade-soon {
+  border-radius: 999px;
+  background: rgb(15 118 110 / 0.1);
+  padding: 0.18rem 0.45rem;
+  letter-spacing: 0.06em;
+}
+
+.ssh-safeshield-upgrade-copy strong {
+  color: #0f172a;
+  font-size: 0.86rem;
+  line-height: 1.35rem;
+}
+
+.ssh-safeshield-upgrade-copy > span {
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.15rem;
+}
+
+.ssh-safeshield-upgrade-action {
+  display: inline-flex;
+  min-height: 2.45rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid #0f766e;
+  border-radius: 0.8rem;
+  background: #0f766e;
+  padding: 0.55rem 0.8rem;
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-decoration: none;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.ssh-safeshield-upgrade-action:hover {
+  border-color: #115e59;
+  background: #115e59;
+  transform: translateY(-1px);
+}
+
+.ssh-safeshield-upgrade-action:focus-visible {
+  outline: 3px solid rgb(20 184 166 / 0.24);
+  outline-offset: 2px;
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-plan-badge[data-tier='free'] {
+  border-color: #475569;
+  background: #1e293b;
+  color: #cbd5e1;
+}
+
+.ssh-app[data-theme='dark']
+  .ssh-safeshield-plan-badge[data-tier='free']
+  .ssh-safeshield-plan-badge-mark {
+  background: #475569;
+  color: #e2e8f0;
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-plan-badge[data-tier='pro'] {
+  border-color: #0f766e;
+  background: linear-gradient(135deg, rgb(13 148 136 / 0.2), rgb(6 78 59 / 0.32));
+  color: #99f6e4;
+  box-shadow: 0 0 20px rgb(45 212 191 / 0.08);
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-plan-badge[data-tier='ultimate'] {
+  border-color: #d97706;
+  background: linear-gradient(135deg, rgb(146 64 14 / 0.3), rgb(120 53 15 / 0.22));
+  color: #fde68a;
+  box-shadow:
+    0 0 22px rgb(245 158 11 / 0.1),
+    inset 0 1px 0 rgb(253 230 138 / 0.12);
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-plan-badge[data-tier='paid'] {
+  border-color: #0e7490;
+  background: linear-gradient(135deg, rgb(14 116 144 / 0.24), rgb(22 78 99 / 0.28));
+  color: #a5f3fc;
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-plan-caption {
+  color: #94a3b8;
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-upgrade-card {
+  border-color: #134e4a;
+  background: linear-gradient(
+    120deg,
+    rgb(13 148 136 / 0.13) 0%,
+    rgb(15 23 42 / 0.98) 58%,
+    rgb(146 64 14 / 0.12) 100%
+  );
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.18);
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-upgrade-mark {
+  background: linear-gradient(135deg, #0d9488, #0891b2);
+  box-shadow: 0 8px 20px rgb(45 212 191 / 0.13);
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-upgrade-meta {
+  color: #5eead4;
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-upgrade-soon {
+  background: rgb(45 212 191 / 0.12);
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-upgrade-copy strong {
+  color: #f8fafc;
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-upgrade-copy > span {
+  color: #94a3b8;
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-upgrade-action {
+  border-color: #2dd4bf;
+  background: rgb(13 148 136 / 0.22);
+  color: #ccfbf1;
+}
+
+.ssh-app[data-theme='dark'] .ssh-safeshield-upgrade-action:hover {
+  border-color: #5eead4;
+  background: rgb(13 148 136 / 0.32);
+}
+
+@media (max-width: 640px) {
+  .ssh-safeshield-upgrade-card {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .ssh-safeshield-upgrade-action {
+    width: 100%;
+  }
+}
+
 .ssh-safeshield-refresh {
   display: flex;
   max-width: 48rem;

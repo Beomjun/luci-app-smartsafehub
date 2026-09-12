@@ -115,6 +115,23 @@ grep -Fq '<SummaryBadge data={data} />' "$PAGE" || \
 	fail 'SafeShield summary must keep the top status badge for fast protection-state recognition'
 grep -Fq "<SummaryFact label=\"SafeShield\" value={data.version ?? '확인되지 않음'} />" "$PAGE" || \
 	fail 'SafeShield summary facts must expose the installed SafeShield version instead of duplicating protection status'
+grep -Fq 'function PlanSummary' "$PAGE" || \
+	fail 'SafeShield summary must render the plan through the dedicated membership presentation'
+grep -Fq 'function PlanBadge' "$PAGE" || \
+	fail 'SafeShield paid plans must use the shared premium membership badge'
+grep -Fq 'data-tier={tone}' "$PAGE" || \
+	fail 'SafeShield plan badges must expose a tier-specific visual treatment'
+grep -Fq "planName === 'FREE' ? <FreePlanUpgrade /> : null" "$PAGE" || \
+	fail 'SafeShield pricing CTA must be shown only for the FREE plan'
+grep -Fq 'https://www.smartsafehub.com/pricing/' "$PAGE" || \
+	fail 'SafeShield FREE plan CTA must link to the SmartSafeHub pricing page'
+grep -Fq 'rel="noopener noreferrer"' "$PAGE" || \
+	fail 'SafeShield pricing link must isolate the new browsing context'
+grep -Fq 'target="_blank"' "$PAGE" || \
+	fail 'SafeShield pricing link must open without replacing the router management UI'
+if grep -Fq '<SummaryFact label="Plan"' "$PAGE"; then
+	fail 'SafeShield plan must not fall back to a plain summary text cell'
+fi
 if grep -Fq '<SummaryFact label="Protection" value={getProtectionSummaryLabel(data)} />' "$PAGE"; then
 	fail 'SafeShield summary facts must not duplicate the protection state already shown in the top badge'
 fi
@@ -134,6 +151,14 @@ grep -Fq '최신 차단 목록 확인' "$ASSET_JS" || \
 	fail 'checked-in app.js must include user-facing SafeShield refresh stage labels'
 grep -Fq '.ssh-safeshield-refresh-donut' "$ASSET_CSS" || \
 	fail 'checked-in app.css must include SafeShield donut refresh styles'
+grep -Fq 'ssh-safeshield-plan-badge' "$ASSET_JS" || \
+	fail 'checked-in app.js must include SafeShield membership badges'
+grep -Fq 'https://www.smartsafehub.com/pricing/' "$ASSET_JS" || \
+	fail 'checked-in app.js must include the FREE plan pricing CTA'
+grep -Fq '.ssh-safeshield-plan-badge[data-tier=ultimate]' "$ASSET_CSS" || \
+	fail 'checked-in app.css must include the ULTIMATE premium badge treatment'
+grep -Fq '.ssh-safeshield-upgrade-card' "$ASSET_CSS" || \
+	fail 'checked-in app.css must include the FREE upgrade CTA treatment'
 grep -Fq '.ssh-safeshield-refresh-loader-svg' "$ASSET_CSS" || \
 	fail 'checked-in app.css must include the SafeShield round loader styles'
 grep -Fq '@keyframes ssh-safeshield-refresh-loader-rotate' "$ASSET_CSS" || \

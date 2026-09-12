@@ -28,6 +28,8 @@ import {
   formatTimestamp,
 } from '../app/format';
 
+const SMARTSAFEHUB_PRICING_URL = 'https://www.smartsafehub.com/pricing/';
+
 interface SafeShieldPageProps {
   action: SafeShieldAction | null;
   actionError: string | null;
@@ -350,6 +352,93 @@ function SummaryFact({ label, value }: { label: string; value: string }) {
   );
 }
 
+
+type SafeShieldPlanTone = 'free' | 'pro' | 'ultimate' | 'paid';
+
+function getSafeShieldPlanName(plan: string | null): string {
+  return plan?.trim().toUpperCase() || 'FREE';
+}
+
+function getSafeShieldPlanTone(plan: string): SafeShieldPlanTone {
+  if (plan === 'FREE') {
+    return 'free';
+  }
+
+  if (plan === 'PRO') {
+    return 'pro';
+  }
+
+  if (plan === 'ULTIMATE') {
+    return 'ultimate';
+  }
+
+  return 'paid';
+}
+
+function PlanBadge({ compact = false, plan }: { compact?: boolean; plan: string }) {
+  const tone = getSafeShieldPlanTone(plan);
+  const paid = tone !== 'free';
+
+  return (
+    <span
+      class="ssh-safeshield-plan-badge"
+      data-compact={compact ? 'true' : 'false'}
+      data-tier={tone}
+      title={paid ? `${plan} 멤버십 활성` : '무료 플랜'}
+    >
+      <span aria-hidden="true" class="ssh-safeshield-plan-badge-mark">
+        {paid ? '✦' : '•'}
+      </span>
+      <span>{plan}</span>
+    </span>
+  );
+}
+
+function PlanSummary({ plan }: { plan: string }) {
+  const paid = plan !== 'FREE';
+
+  return (
+    <div class="bg-white px-5 py-4 sm:px-6">
+      <dt class="text-[0.68rem] font-black uppercase tracking-[0.14em] text-slate-400">
+        Plan
+      </dt>
+      <dd class="mt-2 mb-0 ml-0 flex min-w-0 flex-wrap items-center gap-2">
+        <PlanBadge plan={plan} />
+        <span class="ssh-safeshield-plan-caption">
+          {paid ? '멤버십 활성' : '기본 플랜'}
+        </span>
+      </dd>
+    </div>
+  );
+}
+
+function FreePlanUpgrade() {
+  return (
+    <div class="ssh-safeshield-upgrade-card">
+      <span aria-hidden="true" class="ssh-safeshield-upgrade-mark">
+        ✦
+      </span>
+      <div class="ssh-safeshield-upgrade-copy">
+        <div class="ssh-safeshield-upgrade-meta">
+          <span>SmartSafeHub Membership</span>
+          <span class="ssh-safeshield-upgrade-soon">Coming soon</span>
+        </div>
+        <strong>더 강력한 보호 기능을 준비하고 있습니다.</strong>
+        <span>프리미엄 보호와 확장된 관리 기능을 미리 확인해 보세요.</span>
+      </div>
+      <a
+        class="ssh-safeshield-upgrade-action"
+        href={SMARTSAFEHUB_PRICING_URL}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        요금제 보기
+        <span aria-hidden="true">→</span>
+      </a>
+    </div>
+  );
+}
+
 function SectionHeading({
   description,
   eyebrow,
@@ -528,6 +617,7 @@ export function SafeShieldPage({
   }
 
   const enabled = data.enabled;
+  const planName = getSafeShieldPlanName(data.license.plan);
   const refreshing = isSafeShieldRefreshTransition(data.status, data.stage);
   const actionBusy = action !== null;
   const preserveBlocklistCount = refreshing || getProductProtectionState(data) === 'error';
@@ -662,8 +752,9 @@ export function SafeShieldPage({
               value={`${formatNumber(displayedBlocklistCount)}개 도메인`}
             />
             <SummaryFact label="Last refresh" value={formatTimestamp(data.timestamps.lastSuccess)} />
-            <SummaryFact label="Plan" value={data.license.plan?.toUpperCase() || 'FREE'} />
+            <PlanSummary plan={planName} />
           </dl>
+          {planName === 'FREE' ? <FreePlanUpgrade /> : null}
         </div>
       </section>
 
@@ -778,7 +869,7 @@ export function SafeShieldPage({
                   라이선스
                 </h3>
                 <p class="mt-2 mb-0 text-sm leading-6 text-slate-500">
-                  현재 플랜은 {data.license.plan?.toUpperCase() || 'FREE'}이며, 라이선스 키를 등록하거나 변경할 수 있습니다.
+                  현재 플랜은 {planName}이며, 라이선스 키를 등록하거나 변경할 수 있습니다.
                 </p>
               </div>
               <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-500">
@@ -787,9 +878,7 @@ export function SafeShieldPage({
             </div>
 
             <div class="mt-5 flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 px-4 py-3">
-              <span class="text-sm font-extrabold text-slate-950">
-                {data.license.plan?.toUpperCase() || 'FREE'}
-              </span>
+              <PlanBadge compact plan={planName} />
               <span class="text-xs font-semibold text-slate-500">
                 {data.license.status || (data.license.configured ? '라이선스 연결됨' : '라이선스 미설정')}
               </span>
