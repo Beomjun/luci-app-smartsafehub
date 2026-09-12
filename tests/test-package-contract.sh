@@ -9,6 +9,7 @@ PACKAGE_LOCK="$ROOT_DIR/frontend/package-lock.json"
 CONFIG_FILE="$ROOT_DIR/root/etc/config/smartsafehub"
 LOGIN_TEMPLATE="$ROOT_DIR/root/usr/share/ucode/luci/template/smartsafehub/login.ut"
 FRONTEND_ENTRY="$ROOT_DIR/frontend/src/main.tsx"
+README="$ROOT_DIR/README.md"
 FAVICON_FILE="$ROOT_DIR/root/www/luci-static/smartsafehub/favicon.svg"
 SHELLSPEC_CONFIG="$ROOT_DIR/.shellspec"
 SHELLSPEC_CONTRACTS="$ROOT_DIR/spec/contracts_spec.sh"
@@ -37,6 +38,7 @@ require_file "$PACKAGE_LOCK"
 require_file "$CONFIG_FILE"
 require_file "$LOGIN_TEMPLATE"
 require_file "$FRONTEND_ENTRY"
+require_file "$README"
 require_file "$FAVICON_FILE"
 require_file "$SHELLSPEC_CONFIG"
 require_file "$SHELLSPEC_CONTRACTS"
@@ -91,6 +93,11 @@ grep -Eq '^LUCI_DEPENDS:=.*(^|[[:space:]])\+uclient-fetch([[:space:]]|$)' "$MAKE
 	fail 'LUCI_DEPENDS must include +uclient-fetch for release note downloads'
 grep -Eq '^LUCI_EXTRA_DEPENDS:=safeshield \(>=[0-9]+\.[0-9]+\.[0-9]+([._~+-][A-Za-z0-9._~+-]+)?\)$' "$MAKEFILE" || \
 	fail 'LUCI_EXTRA_DEPENDS must require a minimum safeshield version'
+
+safeshield_min_version="$(sed -n 's/^LUCI_EXTRA_DEPENDS:=safeshield (>=\([^)]*\))$/\1/p' "$MAKEFILE")"
+[ -n "$safeshield_min_version" ] || fail 'could not resolve minimum safeshield version from Makefile'
+grep -Fq "safeshield (>= $safeshield_min_version)" "$README" || \
+	fail "README safeshield dependency must match Makefile minimum version ($safeshield_min_version)"
 
 awk '
 	/^define Package\/luci-app-smartsafehub\/conffiles$/ { in_block = 1; next }

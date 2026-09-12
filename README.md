@@ -138,10 +138,10 @@ ucode-mod-ubus
 ucode-mod-fs
 ucode-mod-uci
 procd
-safeshield (>= 0.3.10)
+safeshield (>= 0.3.20)
 ```
 
-`LUCI_DEPENDS`의 `+safeshield`는 빌드 시 패키지 선택 관계를 유지하고, `EXTRA_DEPENDS:=safeshield (>= 0.3.10)`는 설치·업데이트 시 필요한 최소 SafeShield 버전을 강제합니다.
+`LUCI_DEPENDS`의 `+safeshield`는 빌드 시 패키지 선택 관계를 유지하고, `EXTRA_DEPENDS:=safeshield (>= 0.3.20)`는 설치·업데이트 시 필요한 최소 SafeShield 버전을 강제합니다.
 
 프런트엔드 빌드에는 **Node.js 24 이상**이 필요합니다.
 
@@ -408,6 +408,8 @@ ubus call smartsafehub connected_devices '{}'
 ```
 
 브라우저에서는 홈, Wi-Fi 조회·변경, Wi-Fi reload 뒤 상태 재조회, 연결 기기, SafeShield 상태·갱신, 사용자 규칙, 진단 다운로드, 메뉴 재진입 데이터 갱신, 다른 LuCI 화면 이동 뒤 폴링 종료, 자산 로드 실패 화면, 설정 메뉴의 LuCI 보조 진입점과 모바일 메뉴를 확인합니다. 재부팅은 테스트 장치에서만 실행합니다.
+
+생성된 `app.js` 계약 테스트는 minify 과정에서 변경될 수 있는 TypeScript 식별자 이름에 의존하지 않고, 사용자 동작에 필요한 값과 결과물이 실제 번들에 포함되었는지를 검증합니다.
 
 ## 버전 관리 원칙
 

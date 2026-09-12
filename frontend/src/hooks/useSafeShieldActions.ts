@@ -25,6 +25,8 @@ interface SafeShieldActionState {
   message: string | null;
 }
 
+const SUCCESS_FEEDBACK_TIMEOUT_MS = 4500;
+
 export function useSafeShieldActions(
   refreshStatus: () => Promise<void>,
   refreshStatistics: () => Promise<void>,
@@ -34,62 +36,108 @@ export function useSafeShieldActions(
     error: null,
     message: null,
   });
-  const timers = useRef<number[]>([]);
+  const statusTimers = useRef<number[]>([]);
+  const statisticsTimers = useRef<number[]>([]);
+  const feedbackTimer = useRef<number | null>(null);
 
-  const clearTimers = useCallback(() => {
-    for (const timer of timers.current) {
+  const clearStatusTimers = useCallback(() => {
+    for (const timer of statusTimers.current) {
       window.clearTimeout(timer);
     }
 
-    timers.current = [];
+    statusTimers.current = [];
   }, []);
+
+  const clearStatisticsTimers = useCallback(() => {
+    for (const timer of statisticsTimers.current) {
+      window.clearTimeout(timer);
+    }
+
+    statisticsTimers.current = [];
+  }, []);
+
+  const clearFeedbackTimer = useCallback(() => {
+    if (feedbackTimer.current !== null) {
+      window.clearTimeout(feedbackTimer.current);
+      feedbackTimer.current = null;
+    }
+  }, []);
+
+  const beginAction = useCallback(
+    (action: SafeShieldAction) => {
+      clearFeedbackTimer();
+      setState({ action, error: null, message: null });
+    },
+    [clearFeedbackTimer],
+  );
+
+  const showSuccessMessage = useCallback(
+    (message: string) => {
+      clearFeedbackTimer();
+      setState({ action: null, error: null, message });
+      feedbackTimer.current = window.setTimeout(() => {
+        feedbackTimer.current = null;
+        setState((current) =>
+          current.error !== null || current.action !== null
+            ? current
+            : { ...current, message: null },
+        );
+      }, SUCCESS_FEEDBACK_TIMEOUT_MS);
+    },
+    [clearFeedbackTimer],
+  );
 
   const scheduleRefreshes = useCallback(
     (delays: number[]) => {
-      clearTimers();
+      clearStatusTimers();
 
-      timers.current = delays.map((delay) =>
+      statusTimers.current = delays.map((delay) =>
         window.setTimeout(() => {
           void refreshStatus();
         }, delay),
       );
     },
-    [clearTimers, refreshStatus],
+    [clearStatusTimers, refreshStatus],
   );
 
   const scheduleStatisticsRefreshes = useCallback(
     (delays: number[]) => {
-      clearTimers();
+      clearStatisticsTimers();
 
-      timers.current = delays.map((delay) =>
+      statisticsTimers.current = delays.map((delay) =>
         window.setTimeout(() => {
           void refreshStatistics();
         }, delay),
       );
     },
-    [clearTimers, refreshStatistics],
+    [clearStatisticsTimers, refreshStatistics],
   );
 
-  useEffect(() => clearTimers, [clearTimers]);
+  useEffect(
+    () => () => {
+      clearStatusTimers();
+      clearStatisticsTimers();
+      clearFeedbackTimer();
+    },
+    [clearFeedbackTimer, clearStatisticsTimers, clearStatusTimers],
+  );
 
   const setEnabled = useCallback(
     async (enabled: boolean) => {
       const action: SafeShieldAction = enabled ? 'enable' : 'disable';
-      setState({ action, error: null, message: null });
+      beginAction(action);
 
       try {
         const result = await setSafeShieldEnabled(enabled);
-        setState({
-          action: null,
-          error: null,
-          message: result.changed
+        showSuccessMessage(
+          result.changed
             ? enabled
               ? 'SafeShield 보호 활성화 요청을 적용했습니다.'
               : 'SafeShield 보호 비활성화 요청을 적용했습니다.'
             : enabled
               ? 'SafeShield 보호가 이미 활성화 상태입니다.'
               : 'SafeShield 보호가 이미 비활성화 상태입니다.',
-        });
+        );
         await refreshStatus();
         scheduleRefreshes([800, 2000, 5000]);
       } catch (error) {
@@ -100,7 +148,7 @@ export function useSafeShieldActions(
         });
       }
     },
-    [refreshStatus, scheduleRefreshes],
+    [beginAction, refreshStatus, scheduleRefreshes, showSuccessMessage],
   );
 
   const setStatisticsEnabled = useCallback(
@@ -108,20 +156,18 @@ export function useSafeShieldActions(
       const action: SafeShieldAction = enabled
         ? 'statistics-enable'
         : 'statistics-disable';
-      setState({ action, error: null, message: null });
+      beginAction(action);
 
       try {
         const result = await setSafeShieldStatisticsEnabled(enabled);
 
-        // Statistics-only configuration changes are reconciled synchronously by
-        // SafeShield 0.3.15, so keep the busy indicator visible until the
-        // first statistics refresh has observed the new runtime state.
+        // Statistics-only configuration changes are reconciled synchronously,
+        // so keep the busy indicator visible until the first statistics refresh
+        // has observed the new runtime state.
         await refreshStatistics();
 
-        setState({
-          action: null,
-          error: null,
-          message: result.changed
+        showSuccessMessage(
+          result.changed
             ? result.reconciled
               ? enabled
                 ? '차단 통계 수집을 활성화했습니다.'
@@ -130,7 +176,7 @@ export function useSafeShieldActions(
             : enabled
               ? '차단 통계 수집이 이미 활성화되어 있습니다.'
               : '차단 통계 수집이 이미 비활성화되어 있습니다.',
-        });
+        );
 
         if (result.changed) {
           scheduleStatisticsRefreshes([500, 1500]);
@@ -143,11 +189,11 @@ export function useSafeShieldActions(
         });
       }
     },
-    [refreshStatistics, scheduleStatisticsRefreshes],
+    [beginAction, refreshStatistics, scheduleStatisticsRefreshes, showSuccessMessage],
   );
 
   const refreshBlocklist = useCallback(async () => {
-    setState({ action: 'refresh', error: null, message: null });
+    beginAction('refresh');
 
     try {
       await requestSafeShieldRefresh();
@@ -160,13 +206,14 @@ export function useSafeShieldActions(
         message: null,
       });
     }
-  }, [scheduleRefreshes]);
+  }, [beginAction, scheduleRefreshes]);
 
   const updateLicense = useCallback(
     async (licenseKey: string): Promise<boolean> => {
       const normalizedKey = licenseKey.trim();
 
       if (!normalizedKey) {
+        clearFeedbackTimer();
         setState({
           action: null,
           error: '라이선스 키를 입력해 주세요.',
@@ -175,17 +222,15 @@ export function useSafeShieldActions(
         return false;
       }
 
-      setState({ action: 'license-update', error: null, message: null });
+      beginAction('license-update');
 
       try {
         const result = await updateSafeShieldLicense(normalizedKey);
-        setState({
-          action: null,
-          error: null,
-          message: result.changed
+        showSuccessMessage(
+          result.changed
             ? '라이선스 키를 저장했습니다.'
             : '입력한 라이선스 키가 이미 설정되어 있습니다.',
-        });
+        );
         await refreshStatus();
 
         if (result.refresh.requested) {
@@ -202,11 +247,11 @@ export function useSafeShieldActions(
         return false;
       }
     },
-    [refreshStatus, scheduleRefreshes],
+    [beginAction, clearFeedbackTimer, refreshStatus, scheduleRefreshes, showSuccessMessage],
   );
 
   const readLicense = useCallback(async (): Promise<string | null> => {
-    setState({ action: 'license-read', error: null, message: null });
+    beginAction('license-read');
 
     try {
       const result = await fetchSafeShieldLicense();
@@ -220,20 +265,16 @@ export function useSafeShieldActions(
       });
       return null;
     }
-  }, []);
+  }, [beginAction]);
 
   const removeLicense = useCallback(async (): Promise<boolean> => {
-    setState({ action: 'license-remove', error: null, message: null });
+    beginAction('license-remove');
 
     try {
       const result = await updateSafeShieldLicense('');
-      setState({
-        action: null,
-        error: null,
-        message: result.changed
-          ? '라이선스 키를 제거했습니다.'
-          : '설정된 라이선스 키가 없습니다.',
-      });
+      showSuccessMessage(
+        result.changed ? '라이선스 키를 제거했습니다.' : '설정된 라이선스 키가 없습니다.',
+      );
       await refreshStatus();
 
       if (result.refresh.requested) {
@@ -249,11 +290,12 @@ export function useSafeShieldActions(
       });
       return false;
     }
-  }, [refreshStatus, scheduleRefreshes]);
+  }, [beginAction, refreshStatus, scheduleRefreshes, showSuccessMessage]);
 
   const dismissFeedback = useCallback(() => {
+    clearFeedbackTimer();
     setState((current) => ({ ...current, error: null, message: null }));
-  }, []);
+  }, [clearFeedbackTimer]);
 
   return {
     ...state,

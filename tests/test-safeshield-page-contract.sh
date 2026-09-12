@@ -164,4 +164,32 @@ if grep -Fq '차단 목록 갱신 작업을 시작했습니다.' "$ASSET_JS" || 
 	fail 'checked-in app.js must not retain transient SafeShield manual refresh feedback'
 fi
 
+grep -Fq 'const statusTimers = useRef<number[]>([]);' "$ACTIONS" || \
+	fail 'SafeShield status follow-up refreshes must use their own timer list'
+grep -Fq 'const statisticsTimers = useRef<number[]>([]);' "$ACTIONS" || \
+	fail 'SafeShield statistics follow-up refreshes must use their own timer list'
+if grep -Fq 'const timers = useRef<number[]>([]);' "$ACTIONS"; then
+	fail 'SafeShield status and statistics follow-up refreshes must not share one timer list'
+fi
+grep -Fq 'statusTimers.current = delays.map' "$ACTIONS" || \
+	fail 'SafeShield status refresh scheduling must write only to the status timer list'
+grep -Fq 'statisticsTimers.current = delays.map' "$ACTIONS" || \
+	fail 'SafeShield statistics refresh scheduling must write only to the statistics timer list'
+
+grep -Fq 'const SUCCESS_FEEDBACK_TIMEOUT_MS = 4500;' "$ACTIONS" || \
+	fail 'SafeShield success feedback must use the 4.5-second auto-dismiss policy'
+grep -Fq 'const feedbackTimer = useRef<number | null>(null);' "$ACTIONS" || \
+	fail 'SafeShield success feedback must manage its own dismiss timer'
+grep -Fq 'const showSuccessMessage = useCallback(' "$ACTIONS" || \
+	fail 'SafeShield action success messages must use the shared auto-dismiss helper'
+grep -Fq 'current.error !== null || current.action !== null' "$ACTIONS" || \
+	fail 'SafeShield success auto-dismiss must never clear an active action or persistent error'
+grep -Fq 'clearFeedbackTimer();' "$ACTIONS" || \
+	fail 'SafeShield actions must clear stale success-feedback timers before lifecycle changes'
+
+if ! grep -Eq '(^|[^0-9])4500([^0-9]|$)' "$ASSET_JS" && \
+	! grep -Fq '45e2' "$ASSET_JS"; then
+	fail 'checked-in app.js must include the 4.5-second SafeShield success-feedback timeout policy'
+fi
+
 echo 'PASS: SafeShield product page hierarchy, refresh progress and switch contracts are present'
