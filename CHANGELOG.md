@@ -4,6 +4,18 @@ SmartSafeHub LuCI 애플리케이션의 정식 배포 변경 사항을 기록합
 
 버전은 애플리케이션 버전과 OpenWrt 패키지 릴리스를 함께 표기합니다. 예를 들어 `0.2.0-r1`은 애플리케이션 버전 `0.2.0`, 패키지 릴리스 `1`을 의미합니다.
 
+## [0.2.13-r6] - 2026-09-12
+
+### 개선
+
+- SafeShield 유료 멤버십 badge를 고대비 premium 스타일로 재설계했습니다. `ULTIMATE`는 dark-gold 기반 metallic gradient, 밝은 gold border/glow, jewel-style mark와 은은한 shine 효과를 적용해 라이트·다크 테마 모두에서 즉시 눈에 띄도록 개선했습니다.
+- `PRO`와 기타 유료 플랜도 각각 teal 및 blue jewel-tone gradient로 대비를 강화하고, `멤버십 활성` 상태를 tier 색상의 작은 status pill로 표시해 유료 상태를 badge와 함께 명확하게 인지할 수 있도록 했습니다.
+- 모션 감소 설정에서는 ULTIMATE shine 애니메이션을 비활성화하여 접근성을 유지합니다.
+
+### 테스트
+
+- SafeShield 페이지 계약 테스트에 premium badge의 high-contrast 색상, ULTIMATE shine keyframe, tier별 활성 caption 및 reduced-motion 대응이 소스와 체크인된 CSS에 유지되는지 검증을 추가했습니다.
+
 ## [0.2.13-r5] - 2026-09-12
 
 ### 수정

@@ -395,7 +395,8 @@ function PlanBadge({ compact = false, plan }: { compact?: boolean; plan: string 
 }
 
 function PlanSummary({ plan }: { plan: string }) {
-  const paid = plan !== 'FREE';
+  const tone = getSafeShieldPlanTone(plan);
+  const paid = tone !== 'free';
 
   return (
     <div class="bg-white px-5 py-4 sm:px-6">
@@ -404,7 +405,7 @@ function PlanSummary({ plan }: { plan: string }) {
       </dt>
       <dd class="mt-2 mb-0 ml-0 flex min-w-0 flex-wrap items-center gap-2">
         <PlanBadge plan={plan} />
-        <span class="ssh-safeshield-plan-caption">
+        <span class="ssh-safeshield-plan-caption" data-tier={tone}>
           {paid ? '멤버십 활성' : '기본 플랜'}
         </span>
       </dd>
